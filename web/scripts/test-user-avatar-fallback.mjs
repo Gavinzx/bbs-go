@@ -19,7 +19,7 @@ const expectations = [
   },
   {
     name: "resets failed state when avatar source changes",
-    pattern: /React\.useEffect\s*\(\s*\(\)\s*=>\s*\{\s*set[A-Za-z0-9_]*Failed\s*\(\s*false\s*\)/s,
+    pattern: /React\.useEffect\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?set[A-Za-z0-9_]*Failed\s*\(\s*false\s*\)/s,
   },
   {
     name: "only renders the image while the source has not failed",
