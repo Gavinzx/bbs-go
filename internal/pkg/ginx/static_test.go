@@ -26,9 +26,9 @@ func TestDirHandlerWithSPA(t *testing.T) {
 		wantStatus int
 		wantBody   string
 	}{
-		{path: "/assets/not-exists.css", accept: "text/css,*/*;q=0.1", wantStatus: http.StatusOK, wantBody: "<html>spa</html>"},
-		{path: "/images/not-exists.png", accept: "image/avif,image/webp,image/png,image/*,*/*;q=0.8", wantStatus: http.StatusOK, wantBody: "<html>spa</html>"},
-		{path: "/fonts/not-exists", accept: "*/*", wantStatus: http.StatusOK, wantBody: "<html>spa</html>"},
+		{path: "/assets/not-exists.css", accept: "text/css,*/*;q=0.1", wantStatus: http.StatusNotFound},
+		{path: "/images/not-exists.png", accept: "image/avif,image/webp,image/png,image/*,*/*;q=0.8", wantStatus: http.StatusNotFound},
+		{path: "/fonts/not-exists", accept: "*/*", wantStatus: http.StatusNotFound},
 		{path: "/manifest", accept: "*/*", wantStatus: http.StatusOK, wantBody: "manifest content"},
 		{path: "/topic/123", accept: "text/html,application/xhtml+xml", wantStatus: http.StatusOK, wantBody: "<html>spa</html>"},
 	}

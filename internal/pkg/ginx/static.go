@@ -135,7 +135,7 @@ func DirHandler(fileSystem http.FileSystem, options DirOptions) gin.HandlerFunc 
 			return
 		}
 
-		if options.SPA && options.IndexName != "" {
+		if options.SPA && options.IndexName != "" && !isStaticAssetPath(name) {
 			indexName := "/" + options.IndexName
 			indexFile, err := fileSystem.Open(indexName)
 			if err != nil {
@@ -157,6 +157,20 @@ func DirHandler(fileSystem http.FileSystem, options DirOptions) gin.HandlerFunc 
 		}
 
 		ctx.AbortWithStatus(http.StatusNotFound)
+	}
+}
+
+func isStaticAssetPath(name string) bool {
+	if strings.HasPrefix(name, "/assets/") ||
+		strings.HasPrefix(name, "/images/") ||
+		strings.HasPrefix(name, "/fonts/") {
+		return true
+	}
+	switch strings.ToLower(path.Ext(name)) {
+	case ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".map":
+		return true
+	default:
+		return false
 	}
 }
 

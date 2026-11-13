@@ -4,5 +4,5 @@ package webspa
 
 import "embed"
 
-//go:embed build/spa
+//go:embed all:build/spa
 var SPA embed.FS

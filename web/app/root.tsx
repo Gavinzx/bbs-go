@@ -47,10 +47,12 @@ const GoogleOneTap = React.lazy(() =>
   }))
 )
 
-async function loadRootData(request: Request): Promise<RootLoaderData> {
-  const requestOptions = { request } as NonNullable<
-    Parameters<typeof apiFetch>[1]
-  > & { request: Request }
+async function loadRootData(request?: Request): Promise<RootLoaderData> {
+  const requestOptions = request
+    ? ({ request } as NonNullable<Parameters<typeof apiFetch>[1]> & {
+        request: Request
+      })
+    : undefined
   const [config, currentUser] = await Promise.all([
     apiFetch<SiteConfig>("/api/config/configs", requestOptions).catch(
       () => null
@@ -76,6 +78,12 @@ export async function loader({
   if (getRootData) return getRootData()
 
   return loadRootData(request)
+}
+
+// SPA 构建会移除 server loader，改由 clientLoader 在浏览器获取配置和当前用户，
+// 避免把构建机的站点配置/语言烘焙进 index.html。
+export async function clientLoader(): Promise<RootLoaderData> {
+  return loadRootData()
 }
 
 export function meta({ data }: Route.MetaArgs) {
@@ -182,6 +190,10 @@ function RuntimeScriptInjections() {
   }, [scriptInjections])
 
   return null
+}
+
+export function HydrateFallback() {
+  return <div className="min-h-screen bg-background" />
 }
 
 export default function Root() {

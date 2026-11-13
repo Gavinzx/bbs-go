@@ -4,6 +4,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite"
 
 function stripSpaRouteLoaders(): Plugin {
   const appRoutesDir = `${path.sep}app${path.sep}routes${path.sep}`
+  const appRootFile = `${path.sep}app${path.sep}root.tsx`
 
   return {
     name: "bbsgo-strip-spa-route-loaders",
@@ -11,7 +12,7 @@ function stripSpaRouteLoaders(): Plugin {
     transform(code, id) {
       if (
         process.env.BBSGO_WEB_SPA !== "true" ||
-        !id.includes(appRoutesDir)
+        (!id.includes(appRoutesDir) && !id.includes(appRootFile))
       ) {
         return null
       }
