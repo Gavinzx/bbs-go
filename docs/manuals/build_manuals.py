@@ -285,15 +285,16 @@ def add_page_break(doc):
 
 # ---------------- 用户手册 ----------------
 def build_user_manual():
-    doc = setup_document("bbs-go 用户手册", "平台知识管理工具使用说明")
-    header_text(doc.sections[0], "bbs-go 用户手册")
-    page_number_footer(doc.sections[0], "bbs-go 用户手册")
+    doc = setup_document("平台知识管理工具用户手册", "平台知识管理工具使用说明")
+    doc.core_properties.author = "平台知识管理工具"
+    header_text(doc.sections[0], "平台知识管理工具用户手册")
+    page_number_footer(doc.sections[0], "平台知识管理工具用户手册")
     cover(
         doc,
-        "bbs-go 用户手册",
         "平台知识管理工具",
+        "用户手册",
         "问答 · 知识库 · 搜索 · 个人中心",
-        [("文档版本", "V1.0"), ("适用系统", "bbs-go 平台知识管理工具"), ("编写日期", "2026-11-13"), ("示例环境", "当前 Docker 部署实例")],
+        [("文档版本", "V1.0"), ("适用系统", "平台知识管理工具"), ("编写日期", "2026-11-13"), ("示例环境", "当前 Docker 部署实例")],
     )
     toc(doc, [
         "1  系统概览",
@@ -441,7 +442,7 @@ def build_user_manual():
     ], widths=[5.2, 10.0])
     p(doc, "如果以上方式仍不能解决，请通过团队内部渠道联系系统管理员，并提供账号、页面地址、操作时间和错误截图。")
 
-    out = OUT / "bbs-go用户手册.docx"
+    out = OUT / "平台知识管理工具用户手册.docx"
     doc.save(out)
     print("saved", out)
 
