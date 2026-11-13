@@ -50,7 +50,12 @@ func LoginSignup(ctx *gin.Context) {
 	if req.Redirect == "" {
 		req.Redirect = ctx.Query("redirect")
 	}
-	if !services.SysConfigService.GetLoginConfig().PasswordLogin.Enabled {
+	loginConfig := services.SysConfigService.GetLoginConfig()
+	if !loginConfig.IsRegisterEnabled() {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("auth.register_disabled")))
+		return
+	}
+	if !loginConfig.PasswordLogin.Enabled {
 		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("auth.password_login_disabled")))
 		return
 	}
@@ -192,6 +197,7 @@ func LoginLoginSmsCode(ctx *gin.Context) {
 		return
 	}
 
+	req.Phone = strings.TrimSpace(req.Phone)
 	if strs.IsBlank(req.Phone) {
 		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("auth.phone_required")))
 		return
@@ -204,6 +210,12 @@ func LoginLoginSmsCode(ctx *gin.Context) {
 
 	if !services.SysConfigService.GetLoginConfig().SmsLogin.Enabled {
 		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("auth.sms_login_disabled")))
+		return
+	}
+
+	// 注册关闭时，未注册手机号不再下发验证码（已注册用户仍可短信登录）
+	if !services.SysConfigService.IsRegisterEnabled() && services.UserService.GetByPhone(req.Phone) == nil {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("auth.register_disabled")))
 		return
 	}
 
@@ -241,6 +253,10 @@ func LoginLoginSms(ctx *gin.Context) {
 
 	user := services.UserService.GetByPhone(phone)
 	if user == nil {
+		if !services.SysConfigService.IsRegisterEnabled() {
+			ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("auth.register_disabled")))
+			return
+		}
 		user = &models.User{
 			Phone: sql.NullString{
 				String: phone,

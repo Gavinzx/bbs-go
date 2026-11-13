@@ -1674,6 +1674,17 @@ function LoginSettings({ settings, saving, s, update, onSave }: SettingsProps) {
       saving={saving}
       submitLabel={s("login.submit")}
     >
+      <LoginCard title={s("login.register")}>
+        <Field label={s("login.registerEnabled")}>
+          <SwitchControl
+            checked={getPathValue(login, "registerEnabled") !== false}
+            onChange={(checked) =>
+              update("loginConfig.registerEnabled", checked)
+            }
+          />
+        </Field>
+      </LoginCard>
+
       <LoginCard title={s("login.weixinLogin")}>
         <Field label={s("login.enabled")}>
           <SwitchControl

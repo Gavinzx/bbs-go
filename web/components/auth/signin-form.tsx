@@ -89,6 +89,7 @@ function SigninFormContent({
     [redirect, searchRedirect]
   )
   const loginConfig = config?.loginConfig
+  const registerEnabled = loginConfig?.registerEnabled !== false
   const passwordEnabled = enabled(loginConfig?.passwordLogin)
   const smsEnabled = Boolean(loginConfig?.smsLogin?.enabled)
   const accountMethods = [
@@ -145,7 +146,10 @@ function SigninFormContent({
             </TabsList>
             <TabsContent value="password">
               {passwordEnabled ? (
-                <PasswordLoginForm redirect={effectiveRedirect} />
+                <PasswordLoginForm
+                  redirect={effectiveRedirect}
+                  registerEnabled={registerEnabled}
+                />
               ) : null}
             </TabsContent>
             <TabsContent value="sms">
@@ -157,7 +161,10 @@ function SigninFormContent({
         ) : (
           <>
             {method === "password" && passwordEnabled ? (
-              <PasswordLoginForm redirect={effectiveRedirect} />
+              <PasswordLoginForm
+                redirect={effectiveRedirect}
+                registerEnabled={registerEnabled}
+              />
             ) : null}
             {method === "sms" && smsEnabled ? (
               <SmsLoginForm redirect={effectiveRedirect} />
@@ -177,7 +184,13 @@ function SigninFormContent({
   )
 }
 
-function PasswordLoginForm({ redirect }: { redirect?: string }) {
+function PasswordLoginForm({
+  redirect,
+  registerEnabled = true,
+}: {
+  redirect?: string
+  registerEnabled?: boolean
+}) {
   const { t } = useI18n()
   const { msgError } = useToastActions()
   const [state, action, pending] = useActionState(signinAction, initialState)
@@ -255,14 +268,16 @@ function PasswordLoginForm({ redirect }: { redirect?: string }) {
             {t("user.signin.password.forgotPassword")}
           </Link>
         </div>
-        <div className="text-center">
-          <Link
-            href={authLink("/user/signup", redirect)}
-            className="text-sm text-muted-foreground transition-colors hover:text-primary"
-          >
-            {t("user.signin.password.noAccount")}
-          </Link>
-        </div>
+        {registerEnabled ? (
+          <div className="text-center">
+            <Link
+              href={authLink("/user/signup", redirect)}
+              className="text-sm text-muted-foreground transition-colors hover:text-primary"
+            >
+              {t("user.signin.password.noAccount")}
+            </Link>
+          </div>
+        ) : null}
       </form>
     </div>
   )

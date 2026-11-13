@@ -31,6 +31,23 @@ func newThirdUserService() *thirdUserService {
 type thirdUserService struct {
 }
 
+// ensureRegisterEnabled 校验是否允许通过第三方渠道创建新用户（管理员后台创建不受此限制）
+func ensureRegisterEnabled() error {
+	if !SysConfigService.IsRegisterEnabled() {
+		return errors.New(locales.Get("auth.register_disabled"))
+	}
+	return nil
+}
+
+// ensureGithubRegisterAllowed 仅在需要新建 GitHub 用户时校验注册开关；
+// 同邮箱绑定已有账号的路径不受影响，避免关闭注册后老用户无法登录。
+func ensureGithubRegisterAllowed(existingUser *models.User) error {
+	if existingUser != nil {
+		return nil
+	}
+	return ensureRegisterEnabled()
+}
+
 func (s *thirdUserService) Get(id int64) *models.ThirdUser {
 	return repositories.ThirdUserRepository.Get(sqls.DB(), id)
 }
@@ -105,6 +122,10 @@ func (s *thirdUserService) LoginWeixin(code, state string) (*models.User, error)
 	thirdUser := ThirdUserService.GetByOpenId(info.OpenID, constants.ThirdTypeWeixin)
 	if thirdUser != nil && thirdUser.UserId > 0 {
 		return UserService.Get(thirdUser.UserId), nil
+	}
+
+	if err := ensureRegisterEnabled(); err != nil {
+		return nil, err
 	}
 
 	// copy wechat head image
@@ -212,6 +233,10 @@ func (s *thirdUserService) LoginGoogle(code, state string) (*models.User, error)
 		return UserService.Get(thirdUser.UserId), nil
 	}
 
+	if err := ensureRegisterEnabled(); err != nil {
+		return nil, err
+	}
+
 	// copy google avatar image
 	avatar, _ := UploadService.CopyImage(info.Picture)
 
@@ -292,6 +317,10 @@ func (s *thirdUserService) LoginGoogleOneTap(credential string) (*models.User, e
 	thirdUser := ThirdUserService.GetByOpenId(info.ID, constants.ThirdTypeGoogle)
 	if thirdUser != nil && thirdUser.UserId > 0 {
 		return UserService.Get(thirdUser.UserId), nil
+	}
+
+	if err := ensureRegisterEnabled(); err != nil {
+		return nil, err
 	}
 
 	// copy google avatar image
@@ -375,10 +404,16 @@ func (s *thirdUserService) LoginGithub(code, state string) (*models.User, error)
 		return UserService.Get(thirdUser.UserId), nil
 	}
 
-	// 若 GitHub 返回了邮箱，尝试查找是否已有同邮箱用户，避免重复创建账号
+	// 若 GitHub 返回了邮箱，尝试查找是否已有同邮箱用户，避免重复创建账号。
+	// 注意：该绑定路径依赖 GitHub 邮箱已验证，关闭注册时仍允许，以支持老用户登录。
 	var existingUser *models.User
 	if info.Email != "" {
 		existingUser = UserService.GetByEmail(info.Email)
+	}
+
+	// 关闭注册时只允许绑定已存在邮箱的账号，不再创建新用户
+	if err := ensureGithubRegisterAllowed(existingUser); err != nil {
+		return nil, err
 	}
 
 	avatar, _ := UploadService.CopyImage(info.AvatarURL)

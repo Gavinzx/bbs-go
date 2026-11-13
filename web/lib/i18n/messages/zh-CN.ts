@@ -447,6 +447,8 @@ const zhCN = {
       },
       login: {
         title: "登录配置",
+        register: "注册设置",
+        registerEnabled: "开放注册",
         weixinLogin: "微信登录",
         smsLogin: "短信登录",
         passwordLogin: "密码登录",
@@ -1510,6 +1512,8 @@ const zhCN = {
       emailRequired: "请输入邮箱",
       passwordRequired: "请输入密码",
       passwordMismatch: "两次输入密码不一致",
+      disabled: "注册已关闭，请联系管理员",
+      backToSignin: "返回登录",
     },
     email: {
       verify: {

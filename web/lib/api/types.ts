@@ -200,6 +200,7 @@ export interface SiteConfig {
     [key: string]: boolean | undefined
   }
   loginConfig?: {
+    registerEnabled?: boolean
     passwordLogin?: { enabled?: boolean }
     smsLogin?: { enabled?: boolean }
     githubLogin?: { enabled?: boolean }

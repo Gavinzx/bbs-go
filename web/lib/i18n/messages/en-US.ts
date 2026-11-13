@@ -460,6 +460,8 @@ const enUS = {
       },
       login: {
         title: "Login",
+        register: "Registration",
+        registerEnabled: "Allow registration",
         weixinLogin: "WeChat Login",
         smsLogin: "SMS Login",
         passwordLogin: "Password Login",
@@ -1546,6 +1548,8 @@ const enUS = {
       emailRequired: "Enter your email",
       passwordRequired: "Enter your password",
       passwordMismatch: "Passwords do not match",
+      disabled: "Registration is closed. Please contact the administrator.",
+      backToSignin: "Back to sign in",
     },
     email: {
       verify: {

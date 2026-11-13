@@ -431,12 +431,23 @@ func (s *sysConfigService) GetLoginConfig() dto.LoginConfig {
 		slog.Warn("登录配置错误", slog.Any("err", err))
 	}
 
+	// 未配置开放注册时默认开启，兼容历史数据
+	if loginConfig.RegisterEnabled == nil {
+		registerEnabled := true
+		loginConfig.RegisterEnabled = &registerEnabled
+	}
+
 	// 如果全部禁用，那么默认启用密码登录
 	if loginConfig.IsAllDisabled() {
 		loginConfig.PasswordLogin.Enabled = true
 	}
 
 	return loginConfig
+}
+
+// IsRegisterEnabled 是否开放注册（管理员后台创建用户不受此限制）
+func (s *sysConfigService) IsRegisterEnabled() bool {
+	return s.GetLoginConfig().IsRegisterEnabled()
 }
 
 func (s *sysConfigService) GetUploadConfig() dto.UploadConfig {

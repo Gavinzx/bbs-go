@@ -88,11 +88,12 @@ type FooterLink struct {
 }
 
 type OpenLoginConfig struct {
-	PasswordLogin EnabledConfig `json:"passwordLogin"` // 密码登录
-	WeixinLogin   EnabledConfig `json:"weixinLogin"`   // 微信登录
-	SmsLogin      EnabledConfig `json:"smsLogin"`      // 短信登录
-	GoogleLogin   OAuthConfig   `json:"googleLogin"`   // Google登录
-	GithubLogin   EnabledConfig `json:"githubLogin"`   // GitHub登录
+	RegisterEnabled bool          `json:"registerEnabled"` // 开放注册
+	PasswordLogin   EnabledConfig `json:"passwordLogin"`   // 密码登录
+	WeixinLogin     EnabledConfig `json:"weixinLogin"`     // 微信登录
+	SmsLogin        EnabledConfig `json:"smsLogin"`        // 短信登录
+	GoogleLogin     OAuthConfig   `json:"googleLogin"`     // Google登录
+	GithubLogin     EnabledConfig `json:"githubLogin"`     // GitHub登录
 }
 
 type EnabledConfig struct {
@@ -122,6 +123,9 @@ type ModulesConfig struct {
 
 // LoginConfig 登录配置
 type LoginConfig struct {
+	// 开放注册（为空时默认开启，兼容历史配置）
+	RegisterEnabled *bool `json:"registerEnabled,omitempty"`
+
 	// 密码登录
 	PasswordLogin EnabledConfig `json:"passwordLogin"`
 
@@ -166,6 +170,11 @@ type AliyunSmsConfig struct {
 // IsAllDisabled 是否禁用了所有登录方式
 func (c *LoginConfig) IsAllDisabled() bool {
 	return !c.PasswordLogin.Enabled && !c.WeixinLogin.Enabled && !c.SmsLogin.Enabled && !c.GoogleLogin.Enabled && !c.GithubLogin.Enabled
+}
+
+// IsRegisterEnabled 是否开放注册（未配置时默认开启，兼容历史数据）
+func (c LoginConfig) IsRegisterEnabled() bool {
+	return c.RegisterEnabled == nil || *c.RegisterEnabled
 }
 
 type UploadMethod string
