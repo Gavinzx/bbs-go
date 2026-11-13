@@ -24,6 +24,14 @@ import {
   type CaptchaChallengeHandle,
 } from "@/components/auth/captcha-field"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { SiteConfig } from "@/lib/api/types"
@@ -198,6 +206,7 @@ function PasswordLoginForm({
   const formRef = useRef<HTMLFormElement>(null)
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [contactAdminOpen, setContactAdminOpen] = useState(false)
   const lastErrorRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
@@ -261,12 +270,13 @@ function PasswordLoginForm({
           {t("user.signin.password.loginBtn")}
         </Button>
         <div className="text-center">
-          <Link
-            href="/user/password/forgot"
+          <button
+            type="button"
             className="text-sm text-muted-foreground transition-colors hover:text-primary"
+            onClick={() => setContactAdminOpen(true)}
           >
-            {t("user.signin.password.forgotPassword")}
-          </Link>
+            {t("user.signin.password.contactAdmin")}
+          </button>
         </div>
         {registerEnabled ? (
           <div className="text-center">
@@ -279,6 +289,30 @@ function PasswordLoginForm({
           </div>
         ) : null}
       </form>
+
+      <Dialog open={contactAdminOpen} onOpenChange={setContactAdminOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t("user.signin.password.contactAdminTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("user.signin.password.contactAdminDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("user.signin.password.contactAdminHint")}
+          </p>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => setContactAdminOpen(false)}
+            >
+              {t("user.signin.password.contactAdminClose")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1554,7 +1554,11 @@ const enUS = {
         usernamePlaceholder: "Enter your username or email",
         passwordPlaceholder: "Enter your password",
         loginBtn: "Sign in",
-        forgotPassword: "Forgot password?",
+        contactAdmin: "Contact administrator",
+        contactAdminTitle: "Contact administrator to reset password",
+        contactAdminDescription: "If you forgot your password or cannot sign in, contact your system administrator. An administrator can reset your password from the Users list in the dashboard.",
+        contactAdminHint: "If you do not know who the administrator is, ask through your internal team channel.",
+        contactAdminClose: "Got it",
         noAccount: "Don't have an account? Sign up",
         usernameRequired: "Enter your username or email",
         passwordRequired: "Enter your password",
@@ -1602,32 +1606,6 @@ const enUS = {
         retryInstructions: "Go to",
         accountSettings: "Profile > Account Settings",
         retryAction: "to resend the verification email.",
-      },
-    },
-    passwordReset: {
-      backToSignin: "Back to sign in",
-      forgot: {
-        title: "Forgot password?",
-        emailPlaceholder: "Enter your email",
-        emailRequired: "Enter your email",
-        sendButton: "Send reset email",
-        sending: "Sending...",
-        sentNotice:
-          "If the email exists, a password reset email has been sent.",
-      },
-      reset: {
-        title: "Reset password",
-        tokenMissing:
-          "Invalid reset link. Please request a new password reset link.",
-        passwordPlaceholder: "Enter a new password",
-        rePasswordPlaceholder: "Enter the new password again",
-        passwordRequired: "Enter a new password",
-        rePasswordRequired: "Please confirm new password",
-        passwordMismatch: "Passwords do not match",
-        submitButton: "Reset password",
-        submitting: "Submitting...",
-        successNotice:
-          "Password has been reset. Please sign in with the new password.",
       },
     },
     profile: {
