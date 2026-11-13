@@ -696,7 +696,7 @@ const zhCN = {
         description: "搜索、查看、编辑用户账号并重置密码。",
         batchCreate: "批量创建",
         batchTitle: "批量创建用户",
-        batchHint: "每行一个用户，格式：用户名,邮箱,昵称,密码（最多 100 个）。用户名 5-12 位且字母开头，可含数字和下划线；密码至少 6 位；批量创建不分配角色。",
+        batchHint: "每行一个用户，格式：用户名,邮箱,昵称,密码（最多 100 个）。用户名 5-20 位且字母开头，可含数字和下划线；密码至少 6 位；批量创建不分配角色。",
         batchPlaceholder: "user1,user1@example.com,用户一,Pass@12345",
         batchSubmit: "创建",
         batchCreating: "创建中...",
@@ -705,7 +705,7 @@ const zhCN = {
         batchInvalidLine: "第 {index} 个用户格式不正确，应为：用户名,邮箱,昵称,密码",
         batchResult: "成功 {created} 个，角色分配失败 {roleFailed} 个，失败 {failed} 个",
         batchCreateFailed: "批量创建失败",
-        usernameRule: "5-12 位英文字母、数字或下划线，且以字母开头",
+        usernameRule: "5-20 位英文字母、数字或下划线，且以字母开头",
         importUsers: "批量导入",
         importTitle: "批量导入用户",
         importHint: "下载模板后按表头填写，单行失败不影响其他账号导入。",
@@ -1075,7 +1075,7 @@ const zhCN = {
       title: "设置用户名",
       usernamePlaceholder: "请输入用户名",
       usernameRule:
-        "用户名只能设置一次，请谨慎操作。用户名必须由5-12位英文字母、数字或下划线组成，且必须以字母开头。",
+        "用户名只能设置一次，请谨慎操作。用户名必须由5-20位英文字母、数字或下划线组成，且必须以字母开头。",
       success: "用户名设置成功",
     },
     updatePasswordDialog: {

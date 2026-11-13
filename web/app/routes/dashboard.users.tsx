@@ -90,7 +90,7 @@ export default function DashboardUsersRoute() {
         name: "username",
         label: dashboardData.label(t, "username"),
         createRequired: true,
-        pattern: /^[A-Za-z][A-Za-z0-9_]{4,11}$/,
+        pattern: /^[A-Za-z][A-Za-z0-9_]{4,19}$/,
         patternMessage: t("dashboard.pages.users.usernameRule"),
         hint: t("dashboard.pages.users.usernameRule"),
       },

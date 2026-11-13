@@ -41,7 +41,7 @@ user:
   email_occupied: "Email: %s is already taken"
   email_suffix_not_supported: "Email suffix not supported: %s"
   username_required: "Username is required"
-  username_invalid: "Username must be 5-12 characters, use letters, numbers, or underscores, and start with a letter"
+  username_invalid: "Username must be 5-20 characters, use letters, numbers, or underscores, and start with a letter"
   username_email_required: "Username or email is required"
   username_occupied: "Username: %s is already taken"
   username_already_set: "Username is already set and cannot be changed"
