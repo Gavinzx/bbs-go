@@ -12,7 +12,7 @@ func init() {
 }
 
 func TestIsUsernameAllowsLettersAndUnderscore(t *testing.T) {
-	valid := []string{"zhang_san", "username", "abcdef", "a_b_c"}
+	valid := []string{"zhang_san", "user_01", "username", "abcdef", "a_b_c"}
 	for _, username := range valid {
 		if err := IsUsername(username); err != nil {
 			t.Fatalf("expected %q to be valid, got %v", username, err)
@@ -21,7 +21,7 @@ func TestIsUsernameAllowsLettersAndUnderscore(t *testing.T) {
 }
 
 func TestIsUsernameRejectsDigitsHyphensAndInvalidStarts(t *testing.T) {
-	invalid := []string{"zhang1", "zhang-san", "1zhang", "_zhang", "abc", "abcdefghijklm", "张三"}
+	invalid := []string{"zhang-san", "1zhang", "_zhang", "abc", "abcdefghijklm", "张三"}
 	for _, username := range invalid {
 		if err := IsUsername(username); err == nil {
 			t.Fatalf("expected %q to be invalid", username)

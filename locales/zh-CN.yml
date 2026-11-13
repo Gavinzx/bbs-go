@@ -46,7 +46,7 @@ user:
   email_verify_expired: "验证邮件已过期"
   email_verify_illegal: "非法请求"
   username_required: "请输入用户名"
-  username_invalid: "用户名必须由5-12位英文字母或下划线组成，且必须以字母开头"
+  username_invalid: "用户名必须由5-12位英文字母、数字或下划线组成，且必须以字母开头"
   username_email_required: "用户名/邮箱不能为空"
   username_occupied: "用户名：%s 已被占用"
   username_already_set: "你已设置了用户名，无法重复设置。"

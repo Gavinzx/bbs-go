@@ -711,7 +711,7 @@ const enUS = {
         description: "Search, inspect, edit, and reset user accounts.",
         batchCreate: "Batch create",
         batchTitle: "Batch create users",
-        batchHint: "One user per line: username,email,nickname,password (max 100). Username must be 5-12 characters starting with a letter; password at least 6 characters. Roles are not assigned in batch mode.",
+        batchHint: "One user per line: username,email,nickname,password (max 100). Username must be 5-12 characters starting with a letter and may contain digits and underscores; password at least 6 characters. Roles are not assigned in batch mode.",
         batchPlaceholder: "user1,user1@example.com,User One,Pass@12345",
         batchSubmit: "Create",
         batchCreating: "Creating...",
@@ -720,7 +720,7 @@ const enUS = {
         batchInvalidLine: "User {index} is invalid. Expected: username,email,nickname,password",
         batchResult: "Created {created}, role failed {roleFailed}, failed {failed}",
         batchCreateFailed: "Batch create failed",
-        usernameRule: "5-12 letters or underscores, starting with a letter",
+        usernameRule: "5-12 letters, numbers, or underscores, starting with a letter",
         importUsers: "Batch import",
         importTitle: "Import users from Excel",
         importHint: "Download the template and fill in the headers. A failed row does not stop other rows.",
@@ -1093,7 +1093,7 @@ const enUS = {
       title: "Set Username",
       usernamePlaceholder: "Enter a username",
       usernameRule:
-        "Username can only be set once. It must be 5-12 letters or underscores and start with a letter.",
+        "Username can only be set once. It must be 5-12 letters, numbers, or underscores and start with a letter.",
       success: "Username set successfully",
     },
     updatePasswordDialog: {
