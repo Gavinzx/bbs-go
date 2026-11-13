@@ -115,6 +115,7 @@ type AdminUserCreateReq struct {
 	Email    string `json:"email" form:"email"`
 	Nickname string `json:"nickname" form:"nickname"`
 	Password string `json:"password" form:"password"`
+	RoleIds  string `json:"roleIds" form:"roleIds"`
 }
 
 type AdminUserUpdateReq struct {

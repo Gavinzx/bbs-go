@@ -27,7 +27,7 @@ func TestAdminPermissionRegistryAllowsRoleOptionsFromUserUpdate(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected role options permission to be registered")
 	}
-	expected := []string{PermissionRoleView.Code, PermissionUserUpdate.Code}
+	expected := []string{PermissionRoleView.Code, PermissionUserUpdate.Code, PermissionUserCreate.Code}
 	if len(codes) != len(expected) {
 		t.Fatalf("expected %#v, got %#v", expected, codes)
 	}

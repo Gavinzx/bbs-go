@@ -9,6 +9,7 @@ import (
 	"bbs-go/internal/pkg/idcodec"
 	"bbs-go/internal/pkg/locales"
 	"bbs-go/internal/repositories"
+	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,8 @@ import (
 // 修改自己的密码
 // PostResetPassword 重置密码
 func userBuildUserItem(user *models.User, buildRoleIds bool) map[string]interface{} {
-	b := web.NewRspBuilder(user).
+	// 管理端响应不返回密码哈希
+	b := web.NewRspBuilderExcludes(user, "password").
 		Put("idEncode", idcodec.Encode(user.Id)).
 		Put("roles", user.GetRoles()).
 		Put("username", user.Username.String).
@@ -40,6 +42,52 @@ func userBuildUserItem(user *models.User, buildRoleIds bool) map[string]interfac
 		b.Put("roleIds", services.UserRoleService.GetUserRoleIds(user.Id))
 	}
 	return b.Build()
+}
+
+// normalizeRoleIds 去重并过滤非法 ID
+func normalizeRoleIds(roleIds []int64) []int64 {
+	seen := make(map[int64]struct{}, len(roleIds))
+	result := make([]int64, 0, len(roleIds))
+	for _, id := range roleIds {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
+}
+
+// checkAssignableRoles 校验角色是否存在、启用，且非 Owner 不得分配系统角色。
+// 管理员创建/编辑用户共用，避免通过 roleIds 绕过系统角色保护。
+func checkAssignableRoles(ctx *gin.Context, roleIds []int64) ([]int64, error) {
+	roleIds = normalizeRoleIds(roleIds)
+	if len(roleIds) == 0 {
+		return nil, nil
+	}
+
+	current := common.GetCurrentUser(ctx)
+	if current == nil {
+		return nil, errs.NotLogin()
+	}
+
+	roles := services.RoleService.Find(sqls.NewCnd().In("id", roleIds).Eq("status", constants.StatusOk))
+	if len(roles) != len(roleIds) {
+		return nil, errors.New("角色不存在或已禁用")
+	}
+
+	if !current.IsOwner() {
+		for _, role := range roles {
+			if role.Code == constants.RoleOwner || role.Type == constants.RoleTypeSystem {
+				return nil, errors.New("无权分配系统角色")
+			}
+		}
+	}
+
+	return roleIds, nil
 }
 
 func UserSynccount(ctx *gin.Context) {
@@ -123,10 +171,23 @@ func UserCreate(ctx *gin.Context) {
 		return
 	}
 
+	roleIds, err := checkAssignableRoles(ctx, modelReq.SplitCommaInt64s(req.RoleIds))
+	if err != nil {
+		ginx.WriteJSON(ctx, err)
+		return
+	}
+
 	user, err := services.UserService.SignUp(req.Username, req.Email, req.Nickname, req.Password, req.Password)
 	if err != nil {
 		ginx.WriteJSON(ctx, err)
 		return
+	}
+	if len(roleIds) > 0 {
+		if err := services.UserRoleService.UpdateUserRoles(user.Id, roleIds); err != nil {
+			ginx.WriteJSON(ctx, ginx.ErrorMessage("用户已创建，但角色分配失败："+err.Error()))
+			return
+		}
+		user = services.UserService.Get(user.Id)
 	}
 	ginx.WriteJSON(ctx, userBuildUserItem(user, true))
 
@@ -145,6 +206,12 @@ func UserUpdate(ctx *gin.Context) {
 		return
 	}
 
+	roleIds, err := checkAssignableRoles(ctx, modelReq.SplitCommaInt64s(req.RoleIds))
+	if err != nil {
+		ginx.WriteJSON(ctx, err)
+		return
+	}
+
 	user.Username = sqls.SqlNullString(req.Username)
 	user.Email = sqls.SqlNullString(req.Email)
 	user.Nickname = req.Nickname
@@ -158,7 +225,7 @@ func UserUpdate(ctx *gin.Context) {
 		ginx.WriteJSON(ctx, err)
 		return
 	}
-	if err := services.UserRoleService.UpdateUserRoles(user.Id, modelReq.SplitCommaInt64s(req.RoleIds)); err != nil {
+	if err := services.UserRoleService.UpdateUserRoles(user.Id, roleIds); err != nil {
 		ginx.WriteJSON(ctx, err)
 		return
 	}

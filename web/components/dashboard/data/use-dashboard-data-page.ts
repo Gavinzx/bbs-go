@@ -144,16 +144,18 @@ export function useDashboardDataPage({
   }, [config.tree, config.treeDefaultCollapsed, treeRecords])
 
   const visibleFormFields = React.useMemo(
-    () =>
-      (config.formFields || []).filter(
-        (field) =>
-          !(
-            field.name === "id" &&
-            (formValues.id === undefined ||
-              formValues.id === null ||
-              formValues.id === "")
-          )
-      ),
+    () => {
+      const isCreate =
+        formValues.id === undefined ||
+        formValues.id === null ||
+        formValues.id === ""
+      return (config.formFields || []).filter((field) => {
+        if (field.name === "id" && isCreate) return false
+        if (field.createOnly && !isCreate) return false
+        if (field.editOnly && isCreate) return false
+        return true
+      })
+    },
     [config.formFields, formValues.id]
   )
 
@@ -289,10 +291,14 @@ export function useDashboardDataPage({
 
   function validateForm() {
     const errors: Record<string, string> = {}
+    const isCreate =
+      formValues.id === undefined ||
+      formValues.id === null ||
+      formValues.id === ""
     for (const field of visibleFormFields) {
       const value = formValues[field.name]
       const text = value === undefined || value === null ? "" : String(value)
-      if (field.required && text.trim() === "") {
+      if ((field.required || (isCreate && field.createRequired)) && text.trim() === "") {
         errors[field.name] = messages.required
         continue
       }

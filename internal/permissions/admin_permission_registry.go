@@ -58,7 +58,7 @@ var (
 		{Method: "POST", Pattern: "/api/admin/user/update_password", Permissions: []PermissionDefinition{PermissionUserUpdatePassword}},
 		{Method: "POST", Pattern: "/api/admin/user/reset_password", Permissions: []PermissionDefinition{PermissionUserResetPassword}},
 
-		{Method: "GET", Pattern: "/api/admin/role/roles", Permissions: []PermissionDefinition{PermissionRoleView, PermissionUserUpdate}},
+		{Method: "GET", Pattern: "/api/admin/role/roles", Permissions: []PermissionDefinition{PermissionRoleView, PermissionUserUpdate, PermissionUserCreate}},
 		{Method: "GET", Pattern: "/api/admin/role/*", Permissions: []PermissionDefinition{PermissionRoleView}},
 		{Method: "POST", Pattern: "/api/admin/role/list", Permissions: []PermissionDefinition{PermissionRoleView}},
 		{Method: "POST", Pattern: "/api/admin/role/create", Permissions: []PermissionDefinition{PermissionRoleCreate}},

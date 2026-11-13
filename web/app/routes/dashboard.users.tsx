@@ -18,6 +18,8 @@ export default function DashboardUsersRoute() {
     detailEndpoint: (id) => `/api/admin/user/${id}`,
     updateEndpoint: "/api/admin/user/update",
     updatePermission: PERMISSIONS.DASHBOARD_USER_UPDATE,
+    createEndpoint: "/api/admin/user/create",
+    createPermission: PERMISSIONS.DASHBOARD_USER_CREATE,
     filters: [
       { name: "id", label: dashboardData.label(t, "id") },
       { name: "username", label: dashboardData.label(t, "username") },
@@ -82,32 +84,51 @@ export default function DashboardUsersRoute() {
       {
         name: "username",
         label: dashboardData.label(t, "username"),
+        createRequired: true,
       },
-      { name: "email", label: dashboardData.label(t, "email") },
+      {
+        name: "email",
+        label: dashboardData.label(t, "email"),
+        createRequired: true,
+      },
       {
         name: "nickname",
         label: dashboardData.label(t, "nickname"),
         required: true,
       },
       {
+        name: "password",
+        label: dashboardData.label(t, "password"),
+        type: "password",
+        required: true,
+        createOnly: true,
+      },
+      {
         name: "avatar",
         label: dashboardData.label(t, "avatar"),
         type: "image",
+        editOnly: true,
       },
       {
         name: "gender",
         label: dashboardData.label(t, "gender"),
         type: "select",
+        editOnly: true,
         options: [
           { label: t("dashboard.gender.male"), value: "Male" },
           { label: t("dashboard.gender.female"), value: "Female" },
         ],
       },
-      { name: "homePage", label: dashboardData.label(t, "homePage") },
+      {
+        name: "homePage",
+        label: dashboardData.label(t, "homePage"),
+        editOnly: true,
+      },
       {
         name: "description",
         label: dashboardData.label(t, "description"),
         type: "textarea",
+        editOnly: true,
       },
       {
         name: "roleIds",

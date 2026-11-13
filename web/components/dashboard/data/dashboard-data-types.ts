@@ -27,6 +27,9 @@ export type DashboardDataFormField = DashboardDataOptionSource & {
   name: string
   label: string
   required?: boolean
+  createRequired?: boolean
+  createOnly?: boolean
+  editOnly?: boolean
   colSpan?: 1 | 2
   type?:
     | "text"
