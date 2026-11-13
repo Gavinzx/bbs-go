@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bbs-go/internal/cache"
 	"bbs-go/internal/models/constants"
 	"bbs-go/internal/models/req"
 	"bbs-go/internal/permissions"
@@ -80,7 +81,44 @@ func (s *commentService) UpdateColumn(id int64, name string, value interface{}) 
 }
 
 func (s *commentService) Delete(id int64) error {
-	return repositories.CommentRepository.UpdateColumn(sqls.DB(), id, "status", constants.StatusDeleted)
+	comment := s.Get(id)
+	if comment == nil || comment.Status == constants.StatusDeleted {
+		return nil
+	}
+
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		if err := repositories.CommentRepository.UpdateColumn(ctx.Tx, id, "status", constants.StatusDeleted); err != nil {
+			return err
+		}
+
+		switch comment.EntityType {
+		case constants.EntityTopic:
+			if err := repositories.TopicRepository.UpdateColumn(ctx.Tx, comment.EntityId, "comment_count",
+				gorm.Expr("CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")); err != nil {
+				return err
+			}
+		case constants.EntityArticle:
+			if err := repositories.ArticleRepository.UpdateColumn(ctx.Tx, comment.EntityId, "comment_count",
+				gorm.Expr("CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")); err != nil {
+				return err
+			}
+		case constants.EntityComment:
+			if err := repositories.CommentRepository.UpdateColumn(ctx.Tx, comment.EntityId, "comment_count",
+				gorm.Expr("CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")); err != nil {
+				return err
+			}
+		}
+
+		if err := repositories.UserRepository.UpdateColumn(ctx.Tx, comment.UserId, "comment_count",
+			gorm.Expr("CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")); err != nil {
+			return err
+		}
+
+		ctx.RegisterCallback(func() {
+			cache.UserCache.Invalidate(comment.UserId)
+		})
+		return nil
+	})
 }
 
 func (s *commentService) DeleteByUser(user *models.User, id int64) error {
@@ -143,6 +181,10 @@ func (s *commentService) Publish(userId int64, form req.CreateCommentReq) (*mode
 		switch form.EntityType {
 		case constants.EntityTopic:
 			if err := TopicService.onComment(tx, entityId, comment); err != nil {
+				return err
+			}
+		case constants.EntityArticle:
+			if err := ArticleService.onComment(tx, entityId, comment); err != nil {
 				return err
 			}
 		case constants.EntityComment: // 二级评论

@@ -73,6 +73,11 @@ func (s *articleService) UpdateColumn(id int64, name string, value interface{}) 
 	return err
 }
 
+// onComment 文章被评论时，评论数量 +1。
+func (s *articleService) onComment(tx *gorm.DB, articleId int64, comment *models.Comment) error {
+	return repositories.ArticleRepository.UpdateColumn(tx, articleId, "comment_count", gorm.Expr("comment_count + 1"))
+}
+
 func (s *articleService) Delete(id int64) error {
 	err := repositories.ArticleRepository.UpdateColumn(sqls.DB(), id, "status", constants.StatusDeleted)
 	if err == nil {
