@@ -135,6 +135,9 @@ func UpdateTopicIndexAsync(topic *models.Topic) {
 
 // IndexData 索引数据
 func UpdateTopicIndex(topic *models.Topic) {
+	if index == nil {
+		return
+	}
 	doc := NewTopicDoc(topic)
 	if doc == nil {
 		return
@@ -148,6 +151,9 @@ func UpdateTopicIndex(topic *models.Topic) {
 }
 
 func DeleteTopicIndex(id int64) error {
+	if index == nil {
+		return nil
+	}
 	if err := index.Delete(searchDocID(EntityTypeTopic, id)); err != nil {
 		return err
 	}
@@ -155,6 +161,9 @@ func DeleteTopicIndex(id int64) error {
 }
 
 func UpdateArticleIndex(article *models.Article) {
+	if index == nil {
+		return
+	}
 	doc := NewArticleDoc(article)
 	if doc == nil {
 		return
