@@ -7,7 +7,7 @@ import {
   type DashboardDataPageConfig,
 } from "@/components/dashboard/data"
 import * as dashboardData from "@/components/dashboard/data/dashboard-data-route-utils"
-import { BatchCreateUserDialog } from "@/components/dashboard/users/batch-create-user-dialog"
+import { ImportUsersDialog } from "@/components/dashboard/users/import-users-dialog"
 import { useI18n } from "@/lib/i18n/provider"
 import { PERMISSIONS } from "@/lib/auth/permissions.generated"
 
@@ -90,6 +90,9 @@ export default function DashboardUsersRoute() {
         name: "username",
         label: dashboardData.label(t, "username"),
         createRequired: true,
+        pattern: /^[A-Za-z][A-Za-z_]{4,11}$/,
+        patternMessage: t("dashboard.pages.users.usernameRule"),
+        hint: t("dashboard.pages.users.usernameRule"),
       },
       {
         name: "email",
@@ -164,8 +167,8 @@ export default function DashboardUsersRoute() {
     <DashboardDataPage
       config={config}
       extraActions={
-        <BatchCreateUserDialog
-          onCreated={() => setRefreshKey((current) => current + 1)}
+        <ImportUsersDialog
+          onImported={() => setRefreshKey((current) => current + 1)}
         />
       }
     />

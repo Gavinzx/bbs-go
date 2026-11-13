@@ -49,11 +49,13 @@ var (
 		{Method: "POST", Pattern: "/api/admin/forbidden-word/update", Permissions: []PermissionDefinition{PermissionForbiddenWordUpdate}},
 		{Method: "POST", Pattern: "/api/admin/forbidden-word/delete", Permissions: []PermissionDefinition{PermissionForbiddenWordDelete}},
 
+		{Method: "GET", Pattern: "/api/admin/user/import_template", Permissions: []PermissionDefinition{PermissionUserCreate}},
 		{Method: "GET", Pattern: "/api/admin/user/*", Permissions: []PermissionDefinition{PermissionUserView}},
 		{Method: "GET", Pattern: "/api/admin/user/synccount", Permissions: []PermissionDefinition{PermissionUserUpdate}},
 		{Method: "POST", Pattern: "/api/admin/user/list", Permissions: []PermissionDefinition{PermissionUserView}},
 		{Method: "POST", Pattern: "/api/admin/user/create", Permissions: []PermissionDefinition{PermissionUserCreate}},
 		{Method: "POST", Pattern: "/api/admin/user/batch_create", Permissions: []PermissionDefinition{PermissionUserCreate}},
+		{Method: "POST", Pattern: "/api/admin/user/import", Permissions: []PermissionDefinition{PermissionUserCreate}},
 		{Method: "POST", Pattern: "/api/admin/user/update", Permissions: []PermissionDefinition{PermissionUserUpdate}},
 		{Method: "POST", Pattern: "/api/admin/user/forbidden", Permissions: []PermissionDefinition{PermissionUserForbidden, PermissionUserForbiddenForever}},
 		{Method: "POST", Pattern: "/api/admin/user/update_password", Permissions: []PermissionDefinition{PermissionUserUpdatePassword}},

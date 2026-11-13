@@ -137,3 +137,15 @@ func TestAdminPermissionRegistryProtectsUserBatchCreate(t *testing.T) {
 		t.Fatalf("expected %s, got %s", PermissionUserCreate.Code, code)
 	}
 }
+
+func TestAdminPermissionRegistryProtectsUserImport(t *testing.T) {
+	code, ok := GetAdminPermissionCode("POST", "/api/admin/user/import")
+	if !ok || code != PermissionUserCreate.Code {
+		t.Fatalf("expected user import to require %s, got %s (ok=%v)", PermissionUserCreate.Code, code, ok)
+	}
+
+	code, ok = GetAdminPermissionCode("GET", "/api/admin/user/import_template")
+	if !ok || code != PermissionUserCreate.Code {
+		t.Fatalf("expected import template to require %s, got %s (ok=%v)", PermissionUserCreate.Code, code, ok)
+	}
+}

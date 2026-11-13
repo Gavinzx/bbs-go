@@ -49,6 +49,7 @@ export function DashboardDataPage({
       actionFailed: t("dashboard.errors.actionFailed"),
       sameLevelSortOnly: t("dashboard.errors.sameLevelSortOnly"),
       required: t("dashboard.errors.required"),
+      invalidFormat: t("dashboard.errors.invalidFormat"),
       invalidUrl: t("dashboard.errors.invalidUrl"),
       invalidNumber: t("dashboard.errors.invalidNumber"),
       minValue: (min) => t("dashboard.errors.minValue", { min }),

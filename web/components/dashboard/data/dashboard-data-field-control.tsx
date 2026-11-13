@@ -24,6 +24,8 @@ export function DashboardDataFieldControl({
   value,
   options,
   disabled,
+  required = false,
+  optionalLabel = "Optional",
   error,
   onChange,
 }: {
@@ -31,6 +33,8 @@ export function DashboardDataFieldControl({
   value: AdminFormValue
   options: DashboardDataOption[]
   disabled?: boolean
+  required?: boolean
+  optionalLabel?: string
   error?: string
   onChange: (value: AdminFormValue) => void
 }) {
@@ -55,7 +59,19 @@ export function DashboardDataFieldControl({
         (field.colSpan === 2 || field.type === "textarea") && "md:col-span-2"
       )}
     >
-      <Label>{field.label}</Label>
+      <Label>
+        {field.label}
+        {required ? (
+          <span className="text-destructive">*</span>
+        ) : optionalLabel ? (
+          <span className="text-xs font-normal text-muted-foreground">
+            ({optionalLabel})
+          </span>
+        ) : null}
+      </Label>
+      {field.hint ? (
+        <p className="text-xs text-muted-foreground">{field.hint}</p>
+      ) : null}
       {field.type === "select" ? (
         <DashboardSelect
           value={value}

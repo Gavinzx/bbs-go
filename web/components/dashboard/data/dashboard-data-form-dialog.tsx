@@ -6,6 +6,8 @@ import type { AdminFormValue } from "@/lib/api/admin"
 import { Button } from "@/components/ui/button"
 import { DashboardDialog } from "@/components/dashboard/dashboard-dialog"
 
+import { useI18n } from "@/lib/i18n/provider"
+
 import { DashboardDataFieldControl } from "./dashboard-data-field-control"
 import type {
   DashboardDataFormField,
@@ -76,7 +78,10 @@ export function DashboardDataFormDialog({
   onSubmit: (event: React.FormEvent) => void
   onValueChange: (name: string, value: AdminFormValue) => void
 }) {
+  const { t } = useI18n()
   if (!open || !fields.length) return null
+  const isCreate =
+    values.id === undefined || values.id === null || values.id === ""
   const layoutFields = normalizeFormLayoutFields(fields)
 
   return (
@@ -115,6 +120,10 @@ export function DashboardDataFormDialog({
               ...(asyncOptions[field.name] ?? []),
             ]}
             disabled={field.name === "id"}
+            required={Boolean(
+              field.required || (isCreate && field.createRequired)
+            )}
+            optionalLabel={isCreate ? t("common.optional") : ""}
             error={errors[field.name]}
             onChange={(value) => onValueChange(field.name, value)}
           />

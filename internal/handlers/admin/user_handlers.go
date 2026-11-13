@@ -8,8 +8,13 @@ import (
 	"bbs-go/internal/pkg/errs"
 	"bbs-go/internal/pkg/idcodec"
 	"bbs-go/internal/pkg/locales"
+	"bbs-go/internal/pkg/validate"
+	"bbs-go/internal/pkg/xlsx"
 	"bbs-go/internal/repositories"
 	"errors"
+	"io"
+	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -173,6 +178,12 @@ func UserCreate(ctx *gin.Context) {
 		return
 	}
 
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username == "" {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("user.username_required")))
+		return
+	}
+
 	roleIds, err := checkAssignableRoles(ctx, modelReq.SplitCommaInt64s(req.RoleIds))
 	if err != nil {
 		ginx.WriteJSON(ctx, err)
@@ -206,6 +217,14 @@ func UserUpdate(ctx *gin.Context) {
 	if user == nil {
 		ginx.WriteJSON(ctx, ginx.ErrorMessage("entity not found"))
 		return
+	}
+
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username != "" && req.Username != user.Username.String {
+		if err := validate.IsUsername(req.Username); err != nil {
+			ginx.WriteJSON(ctx, err)
+			return
+		}
 	}
 
 	roleIds, err := checkAssignableRoles(ctx, modelReq.SplitCommaInt64s(req.RoleIds))
@@ -388,4 +407,222 @@ func UserBatchCreate(ctx *gin.Context) {
 	}
 
 	ginx.WriteJSON(ctx, result)
+}
+
+const (
+	maxImportFileSize = 5 << 20
+	maxImportRows     = 1000
+)
+
+type importUserSuccess struct {
+	Row      int    `json:"row"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
+}
+
+type importUserError struct {
+	Row      int    `json:"row"`
+	Username string `json:"username"`
+	Message  string `json:"message"`
+}
+
+type importUserResult struct {
+	Created    int                 `json:"created"`
+	RoleFailed int                 `json:"roleFailed"`
+	Failed     int                 `json:"failed"`
+	Success    []importUserSuccess `json:"success"`
+	Partial    []importUserError   `json:"partial"`
+	Errors     []importUserError   `json:"errors"`
+}
+
+// UserImportTemplate 下载 Excel 导入模板。
+func UserImportTemplate(ctx *gin.Context) {
+	data, err := xlsx.Write([][]string{{"用户名", "邮箱", "昵称", "密码"}})
+	if err != nil {
+		ginx.WriteJSON(ctx, err)
+		return
+	}
+	ctx.Header("Content-Disposition", `attachment; filename="user-import-template.xlsx"`)
+	ctx.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data)
+}
+
+// UserImport 导入 Excel 创建用户（逐行创建，单行失败不影响其他行）。
+func UserImport(ctx *gin.Context) {
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, maxImportFileSize+1<<20)
+	if err := ctx.Request.ParseMultipartForm(maxImportFileSize); err != nil {
+		if strings.Contains(err.Error(), "request body too large") {
+			ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_file_too_large")))
+		} else {
+			ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_file_invalid")))
+		}
+		return
+	}
+
+	fileHeader, err := ctx.FormFile("file")
+	if err != nil || fileHeader == nil {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_file_required")))
+		return
+	}
+	if strings.ToLower(filepath.Ext(fileHeader.Filename)) != ".xlsx" {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_file_type_invalid")))
+		return
+	}
+	if fileHeader.Size > maxImportFileSize {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_file_too_large")))
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		ginx.WriteJSON(ctx, err)
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxImportFileSize+1))
+	if err != nil {
+		ginx.WriteJSON(ctx, err)
+		return
+	}
+	if len(data) > maxImportFileSize {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_file_too_large")))
+		return
+	}
+
+	var roleIds []int64
+	if roleID := strings.TrimSpace(ctx.PostForm("roleId")); roleID != "" {
+		id, err := strconv.ParseInt(roleID, 10, 64)
+		if err != nil {
+			ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.role_not_found_or_disabled")))
+			return
+		}
+		roleIds = []int64{id}
+	}
+	roleIds, err = checkAssignableRoles(ctx, roleIds)
+	if err != nil {
+		ginx.WriteJSON(ctx, err)
+		return
+	}
+	defaultPassword := strings.TrimSpace(ctx.PostForm("defaultPassword"))
+
+	rows, err := xlsx.ReadRows(data)
+	if err != nil {
+		slog.Error("parse import excel failed", slog.Any("err", err))
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_parse_failed")))
+		return
+	}
+
+	headerIndex := -1
+	for index, row := range rows {
+		if !isBlankImportRow(row.Values) {
+			headerIndex = index
+			break
+		}
+	}
+	if headerIndex < 0 {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_empty")))
+		return
+	}
+
+	header := rows[headerIndex].Values
+	if len(header) < 3 ||
+		strings.TrimSpace(header[0]) != "用户名" ||
+		strings.TrimSpace(header[1]) != "邮箱" ||
+		strings.TrimSpace(header[2]) != "昵称" {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_header_invalid")))
+		return
+	}
+	passwordColumn := -1
+	for index, value := range header {
+		if strings.TrimSpace(value) == "密码" {
+			passwordColumn = index
+			break
+		}
+	}
+
+	dataRows := 0
+	for _, row := range rows[headerIndex+1:] {
+		if !isBlankImportRow(row.Values) {
+			dataRows++
+		}
+	}
+	if dataRows == 0 {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_empty")))
+		return
+	}
+	if dataRows > maxImportRows {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.import_row_limit")))
+		return
+	}
+
+	result := importUserResult{
+		Success: make([]importUserSuccess, 0),
+		Partial: make([]importUserError, 0),
+		Errors:  make([]importUserError, 0),
+	}
+	for index := headerIndex + 1; index < len(rows); index++ {
+		row := rows[index]
+		if isBlankImportRow(row.Values) {
+			continue
+		}
+		rowNumber := row.Number
+		username := importCell(row.Values, 0)
+		email := importCell(row.Values, 1)
+		nickname := importCell(row.Values, 2)
+		password := ""
+		if passwordColumn >= 0 {
+			password = importCell(row.Values, passwordColumn)
+		}
+		if password == "" {
+			password = defaultPassword
+		}
+
+		if username == "" {
+			result.Failed++
+			result.Errors = append(result.Errors, importUserError{Row: rowNumber, Username: username, Message: locales.Get("admin.username_required")})
+			continue
+		}
+		if password == "" {
+			result.Failed++
+			result.Errors = append(result.Errors, importUserError{Row: rowNumber, Username: username, Message: locales.Get("admin.import_password_required")})
+			continue
+		}
+
+		user, err := services.UserService.SignUp(username, email, nickname, password, password)
+		if err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, importUserError{Row: rowNumber, Username: username, Message: err.Error()})
+			continue
+		}
+
+		if len(roleIds) > 0 {
+			if err := services.UserRoleService.UpdateUserRoles(user.Id, roleIds); err != nil {
+				slog.Error("import user role assignment failed", slog.Any("err", err), slog.String("username", username))
+				result.RoleFailed++
+				result.Partial = append(result.Partial, importUserError{Row: rowNumber, Username: username, Message: locales.Get("admin.user_role_assign_failed")})
+				continue
+			}
+		}
+
+		result.Created++
+		result.Success = append(result.Success, importUserSuccess{Row: rowNumber, Username: username, Email: email, Nickname: nickname})
+	}
+
+	ginx.WriteJSON(ctx, result)
+}
+
+func importCell(row []string, index int) string {
+	if index < 0 || index >= len(row) {
+		return ""
+	}
+	return strings.TrimSpace(row[index])
+}
+
+func isBlankImportRow(row []string) bool {
+	for _, value := range row {
+		if strings.TrimSpace(value) != "" {
+			return false
+		}
+	}
+	return true
 }

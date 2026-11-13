@@ -45,6 +45,7 @@ export function useDashboardDataPage({
     actionFailed: string
     sameLevelSortOnly: string
     required: string
+    invalidFormat: string
     invalidUrl: string
     invalidNumber: string
     minValue: (min: number) => string
@@ -300,6 +301,15 @@ export function useDashboardDataPage({
       const text = value === undefined || value === null ? "" : String(value)
       if ((field.required || (isCreate && field.createRequired)) && text.trim() === "") {
         errors[field.name] = messages.required
+        continue
+      }
+      if (
+        isCreate &&
+        field.pattern &&
+        text.trim() !== "" &&
+        !field.pattern.test(text)
+      ) {
+        errors[field.name] = field.patternMessage ?? messages.invalidFormat
         continue
       }
       if (

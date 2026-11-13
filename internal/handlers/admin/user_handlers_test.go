@@ -1,9 +1,11 @@
 package admin
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -17,6 +19,8 @@ import (
 	"bbs-go/internal/pkg/config"
 	"bbs-go/internal/pkg/idcodec"
 	"bbs-go/internal/pkg/search"
+	"bbs-go/internal/pkg/xlsx"
+	"bbs-go/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -757,5 +761,298 @@ func TestUserBatchCreateReportsRoleAssignmentFailure(t *testing.T) {
 	}
 	if userCount != 1 {
 		t.Fatalf("expected the user to be created despite role failure, got %d", userCount)
+	}
+}
+
+func postUserImport(t *testing.T, data []byte, defaultPassword, roleID string, current *models.User) (bool, map[string]any) {
+	t.Helper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	filePart, err := writer.CreateFormFile("file", "users.xlsx")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := filePart.Write(data); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	_ = writer.WriteField("defaultPassword", defaultPassword)
+	_ = writer.WriteField("roleId", roleID)
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	common.SetCurrentUser(ctx, current)
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/user/import", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	ctx.Request = req
+
+	UserImport(ctx)
+
+	var result struct {
+		Success bool           `json:"success"`
+		Message string         `json:"message"`
+		Data    map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response %q: %v", w.Body.String(), err)
+	}
+	if !result.Success {
+		return false, map[string]any{"message": result.Message}
+	}
+	return true, result.Data
+}
+
+func ownerUser() *models.User {
+	return &models.User{
+		Model:  models.Model{Id: 99},
+		Roles:  constants.RoleOwner,
+		Status: constants.StatusOk,
+	}
+}
+
+func TestUserImportCreatesUsersWithRowOrDefaultPassword(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	data, err := xlsx.Write([][]string{
+		{"用户名", "邮箱", "昵称", "密码"},
+		{"import_one", "import_one@example.com", "Import One", "Row@12345"},
+		{"import_two", "import_two@example.com", "Import Two", ""},
+	})
+	if err != nil {
+		t.Fatalf("write xlsx: %v", err)
+	}
+
+	ok, result := postUserImport(t, data, "Default@123", "", ownerUser())
+	if !ok {
+		t.Fatalf("expected import success, got %#v", result)
+	}
+	if result["created"] != float64(2) || result["failed"] != float64(0) {
+		t.Fatalf("expected created=2 failed=0, got %#v", result)
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 2 {
+		t.Fatalf("expected 2 users, got %d", userCount)
+	}
+
+	if _, err := services.UserService.SignIn("import_one", "Row@12345"); err != nil {
+		t.Fatalf("expected row password to be used: %v", err)
+	}
+	if _, err := services.UserService.SignIn("import_two", "Default@123"); err != nil {
+		t.Fatalf("expected default password to be used: %v", err)
+	}
+}
+
+func TestUserImportContinuesAfterRowFailure(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	data, err := xlsx.Write([][]string{
+		{"用户名", "邮箱", "昵称", "密码"},
+		{"bad1", "bad1@example.com", "Bad One", "Pass@12345"},
+		{"import_ok", "import_ok@example.com", "Import OK", "Pass@12345"},
+	})
+	if err != nil {
+		t.Fatalf("write xlsx: %v", err)
+	}
+
+	ok, result := postUserImport(t, data, "", "", ownerUser())
+	if !ok {
+		t.Fatalf("expected partial success, got %#v", result)
+	}
+	if result["created"] != float64(1) || result["failed"] != float64(1) {
+		t.Fatalf("expected created=1 failed=1, got %#v", result)
+	}
+	errs, _ := result["errors"].([]any)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 error detail, got %#v", result["errors"])
+	}
+	detail := errs[0].(map[string]any)
+	if detail["username"] != "bad1" || detail["row"] != float64(2) {
+		t.Fatalf("unexpected error detail: %#v", detail)
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 1 {
+		t.Fatalf("expected only 1 user, got %d", userCount)
+	}
+}
+
+func TestUserImportAssignsSelectedRole(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	if err := db.AutoMigrate(&models.Role{}, &models.UserRole{}); err != nil {
+		t.Fatalf("auto migrate roles: %v", err)
+	}
+	if err := db.Create(&models.Role{
+		Model:  models.Model{Id: 2},
+		Type:   1,
+		Name:   "Tester",
+		Code:   "tester",
+		Status: constants.StatusOk,
+	}).Error; err != nil {
+		t.Fatalf("create role: %v", err)
+	}
+
+	data, err := xlsx.Write([][]string{
+		{"用户名", "邮箱", "昵称", "密码"},
+		{"import_role", "import_role@example.com", "Import Role", "Pass@12345"},
+	})
+	if err != nil {
+		t.Fatalf("write xlsx: %v", err)
+	}
+
+	ok, result := postUserImport(t, data, "", "2", ownerUser())
+	if !ok {
+		t.Fatalf("expected import success, got %#v", result)
+	}
+	if result["created"] != float64(1) {
+		t.Fatalf("expected created=1, got %#v", result)
+	}
+
+	var roleCount int64
+	if err := db.Model(&models.UserRole{}).Count(&roleCount).Error; err != nil {
+		t.Fatalf("count user roles: %v", err)
+	}
+	if roleCount != 1 {
+		t.Fatalf("expected 1 user role, got %d", roleCount)
+	}
+}
+
+func TestUserImportRejectsInvalidHeader(t *testing.T) {
+	setupAdminUserTestDB(t)
+	data, err := xlsx.Write([][]string{{"name", "mail", "nick", "password"}})
+	if err != nil {
+		t.Fatalf("write xlsx: %v", err)
+	}
+
+	ok, result := postUserImport(t, data, "", "", ownerUser())
+	if ok {
+		t.Fatalf("expected invalid header to be rejected, got %#v", result)
+	}
+	if result["message"] != "admin.import_header_invalid" {
+		t.Fatalf("expected header error key, got %#v", result)
+	}
+}
+
+func TestUserImportTemplateReturnsXLSX(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/admin/user/import_template", nil)
+
+	UserImportTemplate(ctx)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if contentType := w.Header().Get("Content-Type"); contentType == "" {
+		t.Fatalf("expected xlsx content type")
+	}
+	if !bytes.HasPrefix(w.Body.Bytes(), []byte("PK")) {
+		t.Fatalf("expected xlsx zip payload")
+	}
+}
+
+func TestUserImportRequiresPasswordWhenNoDefault(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	data, err := xlsx.Write([][]string{
+		{"用户名", "邮箱", "昵称"},
+		{"no_password", "no_password@example.com", "No Password"},
+	})
+	if err != nil {
+		t.Fatalf("write xlsx: %v", err)
+	}
+
+	ok, result := postUserImport(t, data, "", "", ownerUser())
+	if !ok {
+		t.Fatalf("expected per-row failure response, got %#v", result)
+	}
+	if result["created"] != float64(0) || result["failed"] != float64(1) {
+		t.Fatalf("expected created=0 failed=1, got %#v", result)
+	}
+	errs, _ := result["errors"].([]any)
+	if len(errs) != 1 || errs[0].(map[string]any)["message"] != "admin.import_password_required" {
+		t.Fatalf("unexpected error details: %#v", result["errors"])
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 0 {
+		t.Fatalf("expected no user, got %d", userCount)
+	}
+}
+
+func TestUserCreateRejectsInvalidUsername(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	common.SetCurrentUser(ctx, ownerUser())
+	body := "username=bad1&email=bad1%40example.com&nickname=Bad&password=Pass%4012345"
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/user/create", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	ctx.Request = req
+
+	UserCreate(ctx)
+
+	var result struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response %q: %v", w.Body.String(), err)
+	}
+	if result.Success || result.Message != "user.username_invalid" {
+		t.Fatalf("expected username validation error, got %s", w.Body.String())
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 0 {
+		t.Fatalf("expected no user, got %d", userCount)
+	}
+}
+
+func TestUserUpdateRejectsInvalidChangedUsername(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	mustCreateUser(t, db, &models.User{
+		Model:    models.Model{Id: 1},
+		Username: sqlNullString("olduser"),
+		Email:    sqlNullString("olduser@example.com"),
+		Nickname: "Old User",
+		Status:   constants.StatusOk,
+	})
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	common.SetCurrentUser(ctx, ownerUser())
+	body := "id=1&username=bad1&email=olduser%40example.com&nickname=Old+User&status=0"
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/user/update", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	ctx.Request = req
+
+	UserUpdate(ctx)
+
+	var result struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response %q: %v", w.Body.String(), err)
+	}
+	if result.Success || result.Message != "user.username_invalid" {
+		t.Fatalf("expected username validation error, got %s", w.Body.String())
 	}
 }
