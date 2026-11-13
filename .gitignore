@@ -27,6 +27,7 @@ bbs-go.test.yaml
 .idea/*
 build/*
 dist/*
+deploy/docker-offline/docker-data/
 
 cscope.files
 tags
