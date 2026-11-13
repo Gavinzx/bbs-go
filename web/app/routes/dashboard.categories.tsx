@@ -104,6 +104,7 @@ export default function DashboardCategoriesRoute() {
         type: "select",
         required: true,
         options: dashboardData.categoryTypeOptionsFor(t),
+        hint: t("dashboard.pages.categories.typeHint"),
       },
       { name: "name", label: dashboardData.label(t, "name"), required: true },
       {

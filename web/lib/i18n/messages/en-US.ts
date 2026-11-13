@@ -201,8 +201,8 @@ const enUS = {
       daily: "Daily",
     },
     categoryTypes: {
-      normal: "Q&A",
-      qa: "Q&A",
+      normal: "General (posts/updates)",
+      qa: "Q&A category",
     },
     forbiddenWordTypes: {
       word: "Word",
@@ -761,6 +761,7 @@ const enUS = {
       categories: {
         title: "Topic Categories",
         description: "Manage topic and Q&A categories.",
+        typeHint: "Q&A categories can only be used for questions; child categories inherit the parent type.",
       },
       forbiddenWords: {
         title: "Moderation Rules",
@@ -1271,6 +1272,7 @@ const enUS = {
           "Please ask an admin to add a Q&A category, or choose another topic type.",
         noQaCategorySubmit:
           "No Q&A category available or none selected. Cannot publish.",
+        goConfigureCategories: "Manage categories",
         tweetFeatureDisabled: "Updates are not enabled",
         topicFeatureDisabled: "Discussions are not enabled",
         qaFeatureDisabled: "Q&A module is not enabled",

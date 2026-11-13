@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiFetch } from "@/lib/api/client"
+import { PERMISSIONS } from "@/lib/auth/permissions.generated"
+import { userHasPermission } from "@/lib/auth/roles"
 import {
   getEditorModeOptions,
   getEditorSwitchConfirmMessage,
@@ -877,6 +879,14 @@ export function TopicCreateForm({
         <AlertTitle>{t("pages.topic.create.noQaCategoryTitle")}</AlertTitle>
         <AlertDescription>
           {t("pages.topic.create.noQaCategoryDescription")}
+          {userHasPermission(
+            currentUser,
+            PERMISSIONS.DASHBOARD_CATEGORY_CREATE
+          ) ? (
+            <Link href="/dashboard/categories" className="ml-1 text-primary">
+              {t("pages.topic.create.goConfigureCategories")}
+            </Link>
+          ) : null}
         </AlertDescription>
       </Alert>
     )

@@ -148,3 +148,86 @@ func postCategoryList(t *testing.T, body string) []resp.CategoryTreeItem {
 	}
 	return result.Data
 }
+
+func TestCategoryCreatePersistsQATypeAndChildInherits(t *testing.T) {
+	db := setupAdminCategoryTestDB(t)
+
+	root := createCategoryViaHandler(t, db, "parentId=0&type=qa&name=qa-root&description=qa+root&status=0")
+	if root.Type != constants.CategoryTypeQA {
+		t.Fatalf("expected root type qa, got %q", root.Type)
+	}
+
+	child := createCategoryViaHandler(t, db, fmt.Sprintf("parentId=%d&type=normal&name=qa-child&description=qa+child&status=0", root.Id))
+	if child.Type != constants.CategoryTypeQA {
+		t.Fatalf("expected child to inherit qa, got %q", child.Type)
+	}
+}
+
+func createCategoryViaHandler(t *testing.T, db *gorm.DB, body string) models.Category {
+	t.Helper()
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/category/create", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	ctx.Request = req
+
+	CategoryCreate(ctx)
+
+	var result struct {
+		Success bool            `json:"success"`
+		Message string          `json:"message"`
+		Data    models.Category `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response %q: %v", w.Body.String(), err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success response, got %s", w.Body.String())
+	}
+
+	var category models.Category
+	if err := db.First(&category, result.Data.Id).Error; err != nil {
+		t.Fatalf("load category: %v", err)
+	}
+	return category
+}
+
+func TestCategoryUpdateAllowsEmptyDescriptionAndChangesType(t *testing.T) {
+	db := setupAdminCategoryTestDB(t)
+	mustCreateCategory(t, db, &models.Category{
+		Model:  models.Model{Id: 1},
+		Name:   "empty-description",
+		Type:   constants.CategoryTypeNormal,
+		Status: constants.StatusOk,
+	})
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/category/update", strings.NewReader("id=1&type=qa&name=empty-description&status=0"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	ctx.Request = req
+
+	CategoryUpdate(ctx)
+
+	var result struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response %q: %v", w.Body.String(), err)
+	}
+	if !result.Success {
+		t.Fatalf("expected update success, got %s", w.Body.String())
+	}
+
+	var category models.Category
+	if err := db.First(&category, 1).Error; err != nil {
+		t.Fatalf("load category: %v", err)
+	}
+	if category.Type != constants.CategoryTypeQA {
+		t.Fatalf("expected type qa, got %q", category.Type)
+	}
+}

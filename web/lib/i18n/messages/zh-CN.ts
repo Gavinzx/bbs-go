@@ -201,8 +201,8 @@ const zhCN = {
       daily: "每日",
     },
     categoryTypes: {
-      normal: "问答",
-      qa: "问答",
+      normal: "普通分类（帖子/动态）",
+      qa: "问答分类",
     },
     forbiddenWordTypes: {
       word: "词条",
@@ -746,6 +746,7 @@ const zhCN = {
       categories: {
         title: "分类管理",
         description: "管理话题和问答分类。",
+        typeHint: "问答分类只能用于「提问」；子分类会自动继承父分类的类型。",
       },
       forbiddenWords: {
         title: "违禁词",
@@ -1247,6 +1248,7 @@ const zhCN = {
         noQaCategoryDescription:
           "请在后台配置支持问答的分类，或选择其他类型发帖。",
         noQaCategorySubmit: "当前没有可用的问答分类或未选择分类，无法发布。",
+        goConfigureCategories: "前往分类管理",
         tweetFeatureDisabled: "动态模块未开启",
         topicFeatureDisabled: "帖子模块未开启",
         qaFeatureDisabled: "提问模块未开启",

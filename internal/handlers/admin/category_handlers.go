@@ -182,10 +182,6 @@ func CategoryUpdate(ctx *gin.Context) {
 		ginx.WriteJSON(ctx, err)
 		return
 	}
-	if strings.TrimSpace(t.Description) == "" {
-		ginx.WriteJSON(ctx, ginx.ErrorMessage("param: description required"))
-		return
-	}
 	if t.ParentId < 0 {
 		t.ParentId = 0
 	}
