@@ -203,6 +203,9 @@ func (s *userService) SignUp(username, email, nickname, password, rePassword str
 	if len(nickname) == 0 {
 		return nil, errors.New(locales.Get("user.nickname_required"))
 	}
+	if strs.RuneLen(nickname) > 16 {
+		return nil, errors.New(locales.Getf("user.nickname_length_invalid", 1, 16))
+	}
 
 	// 验证密码
 	err := validate.IsValidPassword(password, rePassword)

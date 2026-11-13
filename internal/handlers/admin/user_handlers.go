@@ -11,6 +11,7 @@ import (
 	"bbs-go/internal/repositories"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/spf13/cast"
 
 	"bbs-go/internal/services"
+	"log/slog"
 )
 
 // 禁言
@@ -76,13 +78,13 @@ func checkAssignableRoles(ctx *gin.Context, roleIds []int64) ([]int64, error) {
 
 	roles := services.RoleService.Find(sqls.NewCnd().In("id", roleIds).Eq("status", constants.StatusOk))
 	if len(roles) != len(roleIds) {
-		return nil, errors.New("角色不存在或已禁用")
+		return nil, errors.New(locales.Get("admin.role_not_found_or_disabled"))
 	}
 
 	if !current.IsOwner() {
 		for _, role := range roles {
 			if role.Code == constants.RoleOwner || role.Type == constants.RoleTypeSystem {
-				return nil, errors.New("无权分配系统角色")
+				return nil, errors.New(locales.Get("admin.role_no_permission"))
 			}
 		}
 	}
@@ -302,4 +304,88 @@ func UserResetPassword(ctx *gin.Context) {
 		"password": newPassword,
 	})
 
+}
+
+const maxBatchCreateUsers = 100
+
+type batchCreateUserError struct {
+	Index    int    `json:"index"`
+	Username string `json:"username"`
+	Message  string `json:"message"`
+}
+
+type batchCreateUserResult struct {
+	Created    int                    `json:"created"`
+	RoleFailed int                    `json:"roleFailed"`
+	Failed     int                    `json:"failed"`
+	Errors     []batchCreateUserError `json:"errors"`
+}
+
+// UserBatchCreate 批量创建用户（非事务：逐条创建并返回成功/失败明细）
+func UserBatchCreate(ctx *gin.Context) {
+	var req modelReq.AdminUserBatchCreateReq
+	if err := ginx.BindJSON(ctx, &req); err != nil {
+		ginx.WriteJSON(ctx, err)
+		return
+	}
+	if len(req.Users) == 0 {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.user_batch_empty")))
+		return
+	}
+	if len(req.Users) > maxBatchCreateUsers {
+		ginx.WriteJSON(ctx, ginx.ErrorMessage(locales.Get("admin.user_batch_limit")))
+		return
+	}
+
+	result := batchCreateUserResult{Errors: make([]batchCreateUserError, 0)}
+	for index, item := range req.Users {
+		item.Username = strings.TrimSpace(item.Username)
+		if item.Username == "" {
+			result.Failed++
+			result.Errors = append(result.Errors, batchCreateUserError{
+				Index:    index,
+				Username: item.Username,
+				Message:  locales.Get("admin.username_required"),
+			})
+			continue
+		}
+
+		roleIds, err := checkAssignableRoles(ctx, modelReq.SplitCommaInt64s(item.RoleIds))
+		if err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, batchCreateUserError{
+				Index:    index,
+				Username: item.Username,
+				Message:  err.Error(),
+			})
+			continue
+		}
+
+		user, err := services.UserService.SignUp(item.Username, item.Email, item.Nickname, item.Password, item.Password)
+		if err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, batchCreateUserError{
+				Index:    index,
+				Username: item.Username,
+				Message:  err.Error(),
+			})
+			continue
+		}
+
+		if len(roleIds) > 0 {
+			if err := services.UserRoleService.UpdateUserRoles(user.Id, roleIds); err != nil {
+				slog.Error("batch create user role assignment failed", slog.Any("err", err), slog.String("username", item.Username))
+				result.RoleFailed++
+				result.Errors = append(result.Errors, batchCreateUserError{
+					Index:    index,
+					Username: item.Username,
+					Message:  locales.Get("admin.user_role_assign_failed"),
+				})
+				continue
+			}
+		}
+		result.Created++
+	}
+
+	ginx.WriteJSON(ctx, result)
 }

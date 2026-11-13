@@ -71,3 +71,12 @@ func TestEnsureGithubRegisterAllowed(t *testing.T) {
 		t.Fatalf("expected github email binding path to stay allowed, got %v", err)
 	}
 }
+
+func TestUserSignUpRejectsTooLongNickname(t *testing.T) {
+	setLoginConfigForTest(t, `{"passwordLogin":{"enabled":true}}`)
+
+	_, err := UserService.SignUp("longnick", "longnick@example.com", "12345678901234567", "Pass@12345", "Pass@12345")
+	if err == nil {
+		t.Fatalf("expected too long nickname to be rejected")
+	}
+}

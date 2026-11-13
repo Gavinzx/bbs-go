@@ -242,6 +242,7 @@ func registerAdminRoutes(group *gin.RouterGroup) {
 	userGroup.GET("/synccount", adminHandlers.UserSynccount)
 	userGroup.POST("/list", adminHandlers.UserList)
 	userGroup.POST("/create", adminHandlers.UserCreate)
+	userGroup.POST("/batch_create", adminHandlers.UserBatchCreate)
 	userGroup.POST("/update", adminHandlers.UserUpdate)
 	userGroup.POST("/forbidden", adminHandlers.UserForbidden)
 	userGroup.POST("/update_password", adminHandlers.UserUpdatePassword)

@@ -414,7 +414,7 @@ func TestUserCreateRejectsSystemRoleForNonOwner(t *testing.T) {
 	if result.Success {
 		t.Fatalf("expected system role assignment to be rejected, got %s", w.Body.String())
 	}
-	if result.Message != "无权分配系统角色" {
+	if result.Message != "admin.role_no_permission" {
 		t.Fatalf("expected role permission error, got %s", w.Body.String())
 	}
 
@@ -458,7 +458,7 @@ func TestUserCreateRejectsInvalidRoleIds(t *testing.T) {
 	if result.Success {
 		t.Fatalf("expected invalid role ids to be rejected, got %s", w.Body.String())
 	}
-	if result.Message != "角色不存在或已禁用" {
+	if result.Message != "admin.role_not_found_or_disabled" {
 		t.Fatalf("expected invalid role error, got %s", w.Body.String())
 	}
 
@@ -468,5 +468,294 @@ func TestUserCreateRejectsInvalidRoleIds(t *testing.T) {
 	}
 	if userCount != 0 {
 		t.Fatalf("expected no user to be created, got %d", userCount)
+	}
+}
+
+func postUserBatchCreate(t *testing.T, body string) (bool, map[string]any) {
+	t.Helper()
+	return postUserBatchCreateAs(t, body, &models.User{
+		Model:  models.Model{Id: 99},
+		Roles:  constants.RoleOwner,
+		Status: constants.StatusOk,
+	})
+}
+
+func postUserBatchCreateAs(t *testing.T, body string, current *models.User) (bool, map[string]any) {
+	t.Helper()
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	common.SetCurrentUser(ctx, current)
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/user/batch_create", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	ctx.Request = req
+
+	UserBatchCreate(ctx)
+
+	var result struct {
+		Success bool           `json:"success"`
+		Message string         `json:"message"`
+		Data    map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response %q: %v", w.Body.String(), err)
+	}
+	if !result.Success {
+		return false, map[string]any{"message": result.Message}
+	}
+	return true, result.Data
+}
+
+func TestUserBatchCreateRejectsEmptyUsers(t *testing.T) {
+	setupAdminUserTestDB(t)
+
+	ok, data := postUserBatchCreate(t, `{"users":[]}`)
+	if ok {
+		t.Fatalf("expected empty batch to be rejected, got %#v", data)
+	}
+	if data["message"] != "admin.user_batch_empty" {
+		t.Fatalf("expected empty message key, got %#v", data)
+	}
+}
+
+func TestUserBatchCreateRejectsTooManyUsers(t *testing.T) {
+	setupAdminUserTestDB(t)
+
+	users := make([]map[string]string, 0, maxBatchCreateUsers+1)
+	for i := 0; i < maxBatchCreateUsers+1; i++ {
+		users = append(users, map[string]string{
+			"username": fmt.Sprintf("batchuser%d", i),
+			"email":    fmt.Sprintf("batchuser%d@example.com", i),
+			"nickname": fmt.Sprintf("batchuser%d", i),
+			"password": "Pass@12345",
+		})
+	}
+	body, err := json.Marshal(map[string]any{"users": users})
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+
+	ok, data := postUserBatchCreate(t, string(body))
+	if ok {
+		t.Fatalf("expected oversized batch to be rejected, got %#v", data)
+	}
+	if data["message"] != "admin.user_batch_limit" {
+		t.Fatalf("expected limit message key, got %#v", data)
+	}
+}
+
+func TestUserBatchCreateCreatesUsers(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+
+	body := `{"users":[
+		{"username":"batchone","email":"batchone@example.com","nickname":"Batch One","password":"Pass@12345"},
+		{"username":"batchtwo","email":"batchtwo@example.com","nickname":"Batch Two","password":"Pass@12345"}
+	]}`
+	ok, data := postUserBatchCreate(t, body)
+	if !ok {
+		t.Fatalf("expected batch create success, got %#v", data)
+	}
+	if data["created"] != float64(2) || data["roleFailed"] != float64(0) || data["failed"] != float64(0) {
+		t.Fatalf("expected created=2 failed=0, got %#v", data)
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 2 {
+		t.Fatalf("expected 2 users, got %d", userCount)
+	}
+}
+
+func TestUserBatchCreateReturnsPerUserErrors(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	if err := db.Create(&models.User{
+		Model:    models.Model{Id: 1},
+		Username: sqlNullString("duplicated"),
+		Email:    sqlNullString("duplicated@example.com"),
+		Nickname: "duplicated",
+		Status:   constants.StatusOk,
+		Password: "hashed",
+	}).Error; err != nil {
+		t.Fatalf("create existing user: %v", err)
+	}
+
+	body := `{"users":[
+		{"username":"freshuser","email":"freshuser@example.com","nickname":"Fresh","password":"Pass@12345"},
+		{"username":"duplicated","email":"duplicated2@example.com","nickname":"Duplicated","password":"Pass@12345"}
+	]}`
+	ok, data := postUserBatchCreate(t, body)
+	if !ok {
+		t.Fatalf("expected partial success response, got %#v", data)
+	}
+	if data["created"] != float64(1) || data["roleFailed"] != float64(0) || data["failed"] != float64(1) {
+		t.Fatalf("expected created=1 failed=1, got %#v", data)
+	}
+	errs, _ := data["errors"].([]any)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 error detail, got %#v", data["errors"])
+	}
+	detail := errs[0].(map[string]any)
+	if detail["index"] != float64(1) || detail["username"] != "duplicated" {
+		t.Fatalf("unexpected error detail: %#v", detail)
+	}
+}
+
+func TestUserBatchCreateAssignsRoles(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	if err := db.AutoMigrate(&models.Role{}, &models.UserRole{}); err != nil {
+		t.Fatalf("auto migrate roles: %v", err)
+	}
+	if err := db.Create(&models.Role{
+		Model:  models.Model{Id: 2},
+		Type:   1,
+		Name:   "Tester",
+		Code:   "tester",
+		Status: constants.StatusOk,
+	}).Error; err != nil {
+		t.Fatalf("create role: %v", err)
+	}
+
+	body := `{"users":[{"username":"batchrole","email":"batchrole@example.com","nickname":"Batch Role","password":"Pass@12345","roleIds":"2"}]}`
+	ok, data := postUserBatchCreate(t, body)
+	if !ok {
+		t.Fatalf("expected batch create success, got %#v", data)
+	}
+	if data["created"] != float64(1) {
+		t.Fatalf("expected created=1, got %#v", data)
+	}
+
+	var roleCount int64
+	if err := db.Model(&models.UserRole{}).Count(&roleCount).Error; err != nil {
+		t.Fatalf("count user roles: %v", err)
+	}
+	if roleCount != 1 {
+		t.Fatalf("expected 1 user role, got %d", roleCount)
+	}
+}
+
+func TestUserBatchCreateRejectsSystemRoleForNonOwner(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	if err := db.AutoMigrate(&models.Role{}, &models.UserRole{}); err != nil {
+		t.Fatalf("auto migrate roles: %v", err)
+	}
+	if err := db.Create(&models.Role{
+		Model:  models.Model{Id: 1},
+		Type:   constants.RoleTypeSystem,
+		Name:   "Owner",
+		Code:   constants.RoleOwner,
+		Status: constants.StatusOk,
+	}).Error; err != nil {
+		t.Fatalf("create role: %v", err)
+	}
+
+	body := `{"users":[{"username":"batchescalate","email":"batchescalate@example.com","nickname":"Escalate","password":"Pass@12345","roleIds":"1"}]}`
+	ok, data := postUserBatchCreateAs(t, body, &models.User{
+		Model:  models.Model{Id: 10},
+		Roles:  "member",
+		Status: constants.StatusOk,
+	})
+	if !ok {
+		t.Fatalf("expected per-user failure response, got %#v", data)
+	}
+	if data["created"] != float64(0) || data["failed"] != float64(1) {
+		t.Fatalf("expected created=0 failed=1, got %#v", data)
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 0 {
+		t.Fatalf("expected no user to be created, got %d", userCount)
+	}
+}
+
+func TestUserBatchCreateRejectsInvalidRoleIds(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	if err := db.AutoMigrate(&models.Role{}, &models.UserRole{}); err != nil {
+		t.Fatalf("auto migrate roles: %v", err)
+	}
+
+	body := `{"users":[{"username":"batchbadrole","email":"batchbadrole@example.com","nickname":"Bad Role","password":"Pass@12345","roleIds":"999"}]}`
+	ok, data := postUserBatchCreate(t, body)
+	if !ok {
+		t.Fatalf("expected per-user failure response, got %#v", data)
+	}
+	if data["created"] != float64(0) || data["failed"] != float64(1) {
+		t.Fatalf("expected created=0 failed=1, got %#v", data)
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 0 {
+		t.Fatalf("expected no user to be created, got %d", userCount)
+	}
+}
+
+func TestUserBatchCreateRejectsEmptyUsername(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+
+	body := `{"users":[{"username":"","email":"emptyuser@example.com","nickname":"Empty","password":"Pass@12345"}]}`
+	ok, data := postUserBatchCreate(t, body)
+	if !ok {
+		t.Fatalf("expected per-user failure response, got %#v", data)
+	}
+	if data["created"] != float64(0) || data["failed"] != float64(1) {
+		t.Fatalf("expected created=0 failed=1, got %#v", data)
+	}
+	errs, _ := data["errors"].([]any)
+	if len(errs) != 1 || errs[0].(map[string]any)["message"] != "admin.username_required" {
+		t.Fatalf("unexpected error details: %#v", data["errors"])
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 0 {
+		t.Fatalf("expected no user to be created, got %d", userCount)
+	}
+}
+
+func TestUserBatchCreateReportsRoleAssignmentFailure(t *testing.T) {
+	db := setupAdminUserTestDB(t)
+	// 仅迁移 Role，不迁移 UserRole，使角色写入失败
+	if err := db.AutoMigrate(&models.Role{}); err != nil {
+		t.Fatalf("auto migrate roles: %v", err)
+	}
+	if err := db.Create(&models.Role{
+		Model:  models.Model{Id: 2},
+		Type:   1,
+		Name:   "Tester",
+		Code:   "tester",
+		Status: constants.StatusOk,
+	}).Error; err != nil {
+		t.Fatalf("create role: %v", err)
+	}
+
+	body := `{"users":[{"username":"rolefail","email":"rolefail@example.com","nickname":"Role Fail","password":"Pass@12345","roleIds":"2"}]}`
+	ok, data := postUserBatchCreate(t, body)
+	if !ok {
+		t.Fatalf("expected per-user failure response, got %#v", data)
+	}
+	if data["created"] != float64(0) || data["roleFailed"] != float64(1) || data["failed"] != float64(0) {
+		t.Fatalf("expected created=0 roleFailed=1 failed=0, got %#v", data)
+	}
+	errs, _ := data["errors"].([]any)
+	if len(errs) != 1 || errs[0].(map[string]any)["message"] != "admin.user_role_assign_failed" {
+		t.Fatalf("unexpected error details: %#v", data["errors"])
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if userCount != 1 {
+		t.Fatalf("expected the user to be created despite role failure, got %d", userCount)
 	}
 }

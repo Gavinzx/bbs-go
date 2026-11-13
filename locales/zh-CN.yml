@@ -150,6 +150,12 @@ admin:
   tag_name_exists: "标签「%s」已存在"
   tag_name_required: "标签名称不能为空"
   tag_empty: "标签为空"
+  user_batch_empty: "请至少填写一个用户"
+  user_batch_limit: "单次最多创建 100 个用户"
+  username_required: "用户名不能为空"
+  role_not_found_or_disabled: "角色不存在或已禁用"
+  role_no_permission: "无权分配系统角色"
+  user_role_assign_failed: "用户已创建，但角色分配失败"
 
 install:
   already_installed: "系统已安装，无需重复安装"

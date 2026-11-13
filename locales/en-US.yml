@@ -150,6 +150,12 @@ admin:
   tag_name_exists: "Tag \"%s\" already exists"
   tag_name_required: "Tag name is required"
   tag_empty: "Tag is required"
+  user_batch_empty: "Enter at least one user"
+  user_batch_limit: "At most 100 users can be created at a time"
+  username_required: "Username is required"
+  role_not_found_or_disabled: "Role does not exist or is disabled"
+  role_no_permission: "You are not allowed to assign system roles"
+  user_role_assign_failed: "User was created, but role assignment failed"
 
 install:
   already_installed: "System already installed, no need to reinstall"

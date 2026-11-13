@@ -1,18 +1,23 @@
 "use client"
 
+import { useState } from "react"
+
 import {
   DashboardDataPage,
   type DashboardDataPageConfig,
 } from "@/components/dashboard/data"
 import * as dashboardData from "@/components/dashboard/data/dashboard-data-route-utils"
+import { BatchCreateUserDialog } from "@/components/dashboard/users/batch-create-user-dialog"
 import { useI18n } from "@/lib/i18n/provider"
 import { PERMISSIONS } from "@/lib/auth/permissions.generated"
 
 export default function DashboardUsersRoute() {
   const { t } = useI18n()
+  const [refreshKey, setRefreshKey] = useState(0)
   const config: DashboardDataPageConfig = {
     title: dashboardData.title(t, "users"),
     description: dashboardData.desc(t, "users"),
+    refreshKey,
     listEndpoint: "/api/admin/user/list",
     viewPermission: PERMISSIONS.DASHBOARD_USER_VIEW,
     detailEndpoint: (id) => `/api/admin/user/${id}`,
@@ -155,5 +160,14 @@ export default function DashboardUsersRoute() {
     ],
   }
 
-  return <DashboardDataPage config={config} />
+  return (
+    <DashboardDataPage
+      config={config}
+      extraActions={
+        <BatchCreateUserDialog
+          onCreated={() => setRefreshKey((current) => current + 1)}
+        />
+      }
+    />
+  )
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react"
 
 import type { AdminFormValue } from "@/lib/api/admin"
@@ -21,6 +22,7 @@ export function DashboardDataToolbar({
   searchLabel,
   refreshLabel,
   createLabel,
+  extraActions,
   onFilterChange,
   onRefresh,
   onCreate,
@@ -34,6 +36,7 @@ export function DashboardDataToolbar({
   searchLabel: string
   refreshLabel: string
   createLabel: string
+  extraActions?: ReactNode
   onFilterChange: (name: string, value: AdminFormValue) => void
   onRefresh: () => void
   onCreate: () => void
@@ -61,11 +64,16 @@ export function DashboardDataToolbar({
           <RefreshCwIcon />
           <span className="sr-only">{refreshLabel}</span>
         </Button>
-        {canCreate ? (
-          <Button className="ml-auto" onClick={onCreate}>
-            <PlusIcon />
-            {createLabel}
-          </Button>
+        {extraActions || canCreate ? (
+          <div className="ml-auto flex items-center gap-2">
+            {extraActions}
+            {canCreate ? (
+              <Button onClick={onCreate}>
+                <PlusIcon />
+                {createLabel}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

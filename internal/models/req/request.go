@@ -118,6 +118,10 @@ type AdminUserCreateReq struct {
 	RoleIds  string `json:"roleIds" form:"roleIds"`
 }
 
+type AdminUserBatchCreateReq struct {
+	Users []AdminUserCreateReq `json:"users"`
+}
+
 type AdminUserUpdateReq struct {
 	Id          int64  `json:"id" form:"id"`
 	Username    string `json:"username" form:"username"`

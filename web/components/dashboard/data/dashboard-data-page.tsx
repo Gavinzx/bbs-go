@@ -20,8 +20,10 @@ import { useDashboardDataPage } from "./use-dashboard-data-page"
 
 export function DashboardDataPage({
   config,
+  extraActions,
 }: {
   config: DashboardDataPageConfig
+  extraActions?: React.ReactNode
 }) {
   const { t } = useI18n()
   const currentUser = useCurrentUser()
@@ -79,6 +81,7 @@ export function DashboardDataPage({
         searchLabel={t("dashboard.actions.search")}
         refreshLabel={t("dashboard.actions.refresh")}
         createLabel={t("dashboard.actions.create")}
+        extraActions={extraActions}
         onFilterChange={state.updateFilter}
         onRefresh={() => void state.load()}
         onCreate={state.openCreate}

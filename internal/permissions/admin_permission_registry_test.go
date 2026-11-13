@@ -127,3 +127,13 @@ func TestAdminPermissionRegistryRejectsCommentManagementPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminPermissionRegistryProtectsUserBatchCreate(t *testing.T) {
+	code, ok := GetAdminPermissionCode("POST", "/api/admin/user/batch_create")
+	if !ok {
+		t.Fatalf("expected user batch create permission to be registered")
+	}
+	if code != PermissionUserCreate.Code {
+		t.Fatalf("expected %s, got %s", PermissionUserCreate.Code, code)
+	}
+}

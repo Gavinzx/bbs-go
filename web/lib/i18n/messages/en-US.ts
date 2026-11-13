@@ -707,6 +707,17 @@ const enUS = {
       users: {
         title: "Users",
         description: "Search, inspect, edit, and reset user accounts.",
+        batchCreate: "Batch create",
+        batchTitle: "Batch create users",
+        batchHint: "One user per line: username,email,nickname,password (max 100). Username must be 5-12 characters starting with a letter; password at least 6 characters. Roles are not assigned in batch mode.",
+        batchPlaceholder: "user1,user1@example.com,User One,Pass@12345",
+        batchSubmit: "Create",
+        batchCreating: "Creating...",
+        batchEmpty: "Enter at least one user",
+        batchTooMany: "You can create at most 100 users at a time",
+        batchInvalidLine: "User {index} is invalid. Expected: username,email,nickname,password",
+        batchResult: "Created {created}, role failed {roleFailed}, failed {failed}",
+        batchCreateFailed: "Batch create failed",
       },
       topics: {
         title: "Issue Library",

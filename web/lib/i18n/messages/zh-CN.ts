@@ -692,6 +692,17 @@ const zhCN = {
       users: {
         title: "用户管理",
         description: "搜索、查看、编辑用户账号并重置密码。",
+        batchCreate: "批量创建",
+        batchTitle: "批量创建用户",
+        batchHint: "每行一个用户，格式：用户名,邮箱,昵称,密码（最多 100 个）。用户名 5-12 位且字母开头，密码至少 6 位；批量创建不分配角色。",
+        batchPlaceholder: "user1,user1@example.com,用户一,Pass@12345",
+        batchSubmit: "创建",
+        batchCreating: "创建中...",
+        batchEmpty: "请至少输入一行用户",
+        batchTooMany: "单次最多创建 100 个用户",
+        batchInvalidLine: "第 {index} 个用户格式不正确，应为：用户名,邮箱,昵称,密码",
+        batchResult: "成功 {created} 个，角色分配失败 {roleFailed} 个，失败 {failed} 个",
+        batchCreateFailed: "批量创建失败",
       },
       topics: {
         title: "问题库清单",
