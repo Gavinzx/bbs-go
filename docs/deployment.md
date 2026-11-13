@@ -149,6 +149,24 @@ make build    # 先构建 SPA，再编译 Go 二进制
 
 原生模式不启动 Node；SPA 已通过 `go:embed` 嵌入 Go 二进制。只有需要 SSR 时才需要额外运行 Node。
 
+### 2.5 CentOS 7 + SQLite 离线包
+
+针对 CentOS 7 和 SQLite 的轻量离线包位于 `deploy/centos7-sqlite/`，构建后生成：
+
+```text
+dist/bbs-go-centos7-sqlite-offline/
+dist/bbs-go-centos7-sqlite-offline.tar.gz
+```
+
+包内包含应用镜像、可选 Docker 20.10.24 静态运行时、Compose 插件、启动脚本和 `manual/部署手册.pdf`。运行时采用「Go 单进程 + 内嵌 SPA」形态，不启动 Node SSR，也不再需要 MySQL：
+
+```bash
+cd bbs-go-centos7-sqlite-offline
+./deploy.sh
+```
+
+默认访问 `http://<host>:8082/`，安装向导默认选中 SQLite。完整步骤见包内 [部署手册](../deploy/centos7-sqlite/manual/部署手册.md)。
+
 ### 2.4 开发模式
 
 仅用于本地开发，不用于生产：

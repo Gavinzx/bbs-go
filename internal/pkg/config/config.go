@@ -188,6 +188,11 @@ func getConfigFilePath(configName string) string {
 	// Always prefer writing next to the working directory, even when the file does not yet exist.
 	cwdPath := filepath.Join(".", configName)
 	if _, err := os.Stat(cwdPath); err == nil {
+		// When bbs-go.yaml is a symlink into a data volume (Docker SQLite),
+		// resolve it so the SQLite file and config live in the same directory.
+		if resolved, err := filepath.EvalSymlinks(cwdPath); err == nil {
+			return resolved
+		}
 		return cwdPath
 	}
 	// If CWD is accessible but file is missing, still choose CWD so installs do not drift to temp dirs.

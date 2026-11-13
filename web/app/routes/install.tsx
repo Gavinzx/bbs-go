@@ -40,5 +40,10 @@ export default function InstallRoute() {
   }
   if (data?.installed) return <Navigate to="/" replace />
 
-  return <InstallWizard dockerBuiltinMysql={Boolean(data?.dockerBuiltinMysql)} />
+  return (
+    <InstallWizard
+      dockerBuiltinMysql={Boolean(data?.dockerBuiltinMysql)}
+      defaultDbType={data?.dbType === "sqlite" ? "sqlite" : "mysql"}
+    />
+  )
 }

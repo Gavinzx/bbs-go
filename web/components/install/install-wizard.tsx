@@ -44,14 +44,16 @@ function defaultBaseURL() {
 
 export function InstallWizard({
   dockerBuiltinMysql = false,
+  defaultDbType = "mysql",
 }: {
   dockerBuiltinMysql?: boolean
+  defaultDbType?: DbType
 }) {
   const [step, setStep] = React.useState<Step>("welcome")
   const [language, setLanguage] = React.useState<Locale>("en-US")
   const t = React.useMemo(() => createT(language), [language])
   const [dbConfig, setDbConfig] = React.useState({
-    type: "mysql" as DbType,
+    type: defaultDbType,
     host: "localhost",
     port: "3306",
     database: "",
