@@ -283,6 +283,24 @@ def add_page_break(doc):
     doc.add_page_break()
 
 
+def sanitize_admin_brand():
+    """把后台截图左上角的产品名替换为平台名称。"""
+    from PIL import Image, ImageDraw, ImageFont
+    font_path = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+    try:
+        font = ImageFont.truetype(font_path, 11, index=0)
+    except OSError:
+        font = ImageFont.load_default()
+    for path in sorted(IMG.glob("admin-*.png")):
+        im = Image.open(path).convert("RGB")
+        if im.width < 1100:
+            continue
+        draw = ImageDraw.Draw(im)
+        draw.rectangle((44, 8, 185, 31), fill=(248, 250, 252))
+        draw.text((51, 11), "平台知识管理工具", font=font, fill=(31, 78, 121))
+        im.save(path, optimize=True)
+
+
 # ---------------- 用户手册 ----------------
 def build_user_manual():
     doc = setup_document("平台知识管理工具用户手册", "平台知识管理工具使用说明")
@@ -449,15 +467,16 @@ def build_user_manual():
 
 # ---------------- 管理员手册 ----------------
 def build_admin_manual():
-    doc = setup_document("bbs-go 管理员手册", "平台知识管理工具后台管理说明")
-    header_text(doc.sections[0], "bbs-go 管理员手册")
-    page_number_footer(doc.sections[0], "bbs-go 管理员手册")
+    doc = setup_document("平台知识管理工具管理员手册", "平台知识管理工具后台管理说明")
+    doc.core_properties.author = "平台知识管理工具"
+    header_text(doc.sections[0], "平台知识管理工具管理员手册")
+    page_number_footer(doc.sections[0], "平台知识管理工具管理员手册")
     cover(
         doc,
-        "bbs-go 管理员手册",
-        "平台知识管理工具 · 管理后台",
+        "平台知识管理工具",
+        "管理员手册",
         "分类 · 用户 · 角色权限 · 内容治理 · 系统设置",
-        [("文档版本", "V1.0"), ("适用系统", "bbs-go 平台知识管理工具"), ("编写日期", "2026-11-13"), ("示例环境", "当前 Docker 部署实例")],
+        [("文档版本", "V1.0"), ("适用系统", "平台知识管理工具"), ("编写日期", "2026-11-13"), ("示例环境", "当前 Docker 部署实例")],
     )
     toc(doc, [
         "1  后台入口与权限模型",
@@ -651,7 +670,7 @@ def build_admin_manual():
     ], widths=[5.3, 10.0])
     p(doc, "如需进一步排查，请提供账号、页面地址、操作时间、服务端日志和浏览器截图。")
 
-    out = OUT / "bbs-go管理员手册.docx"
+    out = OUT / "平台知识管理工具管理员手册.docx"
     doc.save(out)
     print("saved", out)
 
@@ -739,6 +758,7 @@ def build_deployment_docx():
 
 
 if __name__ == "__main__":
+    sanitize_admin_brand()
     build_user_manual()
     build_admin_manual()
     build_deployment_docx()
